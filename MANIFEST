@@ -8,6 +8,7 @@ demo2.plx
 demo3.plx
 demo4.plx
 demo5.plx
+demo6.plx
 Install.PL
 Inst_3xx.PL
 options.plx
@@ -21,3 +22,4 @@ t/test2.t
 t/test3.t
 t/test4.t
 t/test5.t
+t/test6.t

@@ -62,7 +62,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 </A></H1>
 <PRE>  use Win32;
   require 5.003;
-  use Win32API::CommPort qw( :STAT 0.13 );
+  use Win32API::CommPort qw( :PARAM :STAT 0.14 );
 </PRE>
 
 <P>
@@ -96,19 +96,16 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 
 </A></H2>
 <PRE>  set_no_messages(1);                   # test suite use
-  nocarp || carp &quot;Something fishy&quot;;
 </PRE>
 
 <P>
 
-<PRE>  $a = SHORTsize;                       # 0xffff
+<PRE>      # exported by :PARAM
+  nocarp || carp &quot;Something fishy&quot;;
+  $a = SHORTsize;                       # 0xffff
   $a = LONGsize;                        # 0xffffffff
   $answer = Yes_true(&quot;choice&quot;);         # 1 or 0
-</PRE>
-
-<P>
-
-<PRE>  OS_Error unless ($API_Call_OK);       # prints error
+  OS_Error unless ($API_Call_OK);       # prints error
 </PRE>
 
 <P>
@@ -297,7 +294,9 @@ Additional useful constants may be exported eventually.
 
 <P>
 
-<PRE>  $PortObj-&gt;close;      ## undef $PortObj preferred
+<PRE>  $PortObj-&gt;close || die;
+      # &quot;undef $PortObj&quot; preferred unless reopening port
+      # &quot;close&quot; should precede &quot;undef&quot; if both used
 </PRE>
 
 <P>
@@ -420,7 +419,9 @@ initialization is completed. These will automatically update the
 
 <P>
 
-<PRE>  $PortObj-&gt;close;
+<PRE>  $PortObj-&gt;close || die;
+      # &quot;undef $PortObj&quot; preferred unless reopening port
+      # &quot;close&quot; should precede &quot;undef&quot; if both used
 </PRE>
 
 <P>
@@ -819,6 +820,11 @@ e.g. the following is WRONG!!____<CODE>print $PortObj "some text";</CODE>
 
 <P>
 
+<EM>Win32::SerialPort</EM> supports accessing ports via <EM>Tied Filehandles</EM>.
+
+
+<P>
+
 An important note about Win32 filenames. The reserved device names such as <CODE><PRE> COM1, AUX, LPT1, CON, PRN 
 </PRE>
 </CODE> can NOT be used as filenames. Hence
@@ -852,7 +858,7 @@ selected over performance. Since everything is (sometimes convoluted but
 still pure) perl, you can fix flaws and change limits if required. But
 please file a bug report if you do. This module has been tested with each
 of the binary perl versions for which Win32::API is supported: AS builds
-315, 316, and 500 and GS 5.004_02. It has only been tested on Intel
+315, 316, and 500-509 and GS 5.004_02. It has only been tested on Intel
 hardware.
 
 
@@ -882,7 +888,7 @@ support dynamic buffer sizing.
 
 </A></STRONG><DD>
 Lots of modem-specific options are not supported. The same is true of TAPI,
-MAPI. Of course, <EM>API Wizards</EM> are welcome to contribute.
+MAPI. <EM>API Wizards</EM> are welcome to contribute.
 
 
 <P>
@@ -958,7 +964,7 @@ experimenting.
 
 <P>
 
-On Win32, a port which has been closed cannot be reopened again by the same
+On Win32, a port must be closed before it can be reopened again by the same
 process. If a physical port can be accessed using more than one name (see
 above), all names are treated as one. Exiting and rerunning the script is
 ok. The perl script can also be run multiple times within a single batch
@@ -1036,7 +1042,7 @@ Perltoot.xxx - Tom (Christiansen)'s Object-Oriented Tutorial
 <H1><A NAME="COPYRIGHT">COPYRIGHT
 
 </A></H1>
-Copyright (C) 1998, Bill Birthisel. All rights reserved.
+Copyright (C) 1999, Bill Birthisel. All rights reserved.
 
 
 <P>
@@ -1056,13 +1062,9 @@ This is still Beta code and may be subject to functional changes which are
 not fully backwards compatible. Version 0.12 added an <EM>Install.PL</EM>
 script to put modules into the documented Namespaces. The script uses
 <EM>MakeMaker</EM> tools not available in ActiveState 3xx builds. Users of those builds will
-need to install differently (see README). Some of the optional exports
-(those under the ``RAW:'' tag) have been renamed in this version. I do not
-know of any scripts outside the test suite which will be affected. All of
-the programs in the test suite have been modified for Version 0.13. They
-will not work with previous versions. Since the
-<STRONG>set_no_messages</STRONG> function has been designated ``test suite only'', the change should not
-effect user scripts. 28 Nov 1998.
+need to install differently (see README). All of the programs in the test
+suite have been modified for Version 0.14. They will not work with previous
+versions. 05 Feb 1999.
 
 
 <P>

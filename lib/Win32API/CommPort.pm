@@ -3,6 +3,10 @@ package Win32API::CommPort;
 
 use Win32;
 use Win32::API 0.01;
+if ( $] < 5.004 ) {
+    my $no_silly_warning = $Win32::API::VERSION;
+    $no_silly_warning = $Win32::API::pack;
+}
 
 use Carp;
 use strict;
@@ -24,7 +28,7 @@ use vars qw(
 
 $_CreateFile = new Win32::API("kernel32", "CreateFile",
 	 [P, N, N, N, N, N, N], N);
-$_CloseHandle = new Win32::API("kernel32", "CloseHandle", [P], N);
+$_CloseHandle = new Win32::API("kernel32", "CloseHandle", [N], N);
 $_GetCommState = new Win32::API("kernel32", "GetCommState", [N, P], I);
 $_SetCommState = new Win32::API("kernel32", "SetCommState", [N, P], I);
 $_SetupComm = new Win32::API("kernel32", "SetupComm", [N, N, N], I);
@@ -61,7 +65,7 @@ $_ResetEvent = new Win32::API("kernel32", "ResetEvent", [N], I);
 use strict;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION = '0.13';
+$VERSION = '0.14';
 
 require Exporter;
 ## require AutoLoader;
@@ -183,7 +187,6 @@ $EXPORT_TAGS{ALL} = \@EXPORT_OK;
 sub CloseHandle {
     return unless ( 1 == @_ );
     return $_CloseHandle->Call( shift );
-    # boolean not usually checked
 }
 
 sub CreateFile {
@@ -2071,6 +2074,7 @@ sub debug_comm {
 sub close {
     my $self = shift;
     my $ok;
+    my $success = 1;
 
     return unless (defined $self->{NAME});
 
@@ -2081,31 +2085,47 @@ sub close {
         purge_all ($self);
         update_timeouts ($self);			# if any running ??
         $ok=CloseHandle($self->{"_HANDLE"});
-        if ($Babble) {
-            print "Closing handle $self->{\"_HANDLE\"} for $self->{NAME}\n";
+        if (! $ok) {
+            print "Error Closing handle $self->{\"_HANDLE\"} for $self->{NAME}\n";
+            OS_Error;
+	    $success = 0;
+        }
+        elsif ($Babble) {
+            print "Closing Device handle $self->{\"_HANDLE\"} for $self->{NAME}\n";
         }
         $self->{"_HANDLE"} = undef;
     }
     if ($self->{"_R_EVENT"}) {
         $ok=CloseHandle($self->{"_R_EVENT"});
+        if (! $ok) {
+            print "Error closing Read Event handle $self->{\"_R_EVENT\"} for $self->{NAME}\n";
+            OS_Error;
+	    $success = 0;
+        }
         $self->{"_R_EVENT"} = undef;
     }
     if ($self->{"_W_EVENT"}) {
         $ok=CloseHandle($self->{"_W_EVENT"});
+        if (! $ok) {
+            print "Error closing Write Event handle $self->{\"_W_EVENT\"} for $self->{NAME}\n";
+            OS_Error;
+	    $success = 0;
+        }
         $self->{"_W_EVENT"} = undef;
     }
-    # Microsoft samples never check the result either!
     $self->{NAME} = undef;
+    if ($Babble) {
+        printf "CommPort close result:%d\n", $success;
+    }
+    return $success;
 }
 
 sub DESTROY {
-    my $ok;
     my $self = shift;
-
     return unless (defined $self->{NAME});
 
     if ($Babble or $self->{"_DEBUG_C"}) {
-        carp "Destroying $self->{NAME}";
+        print "Destroying $self->{NAME}\n" if (defined $self->{NAME});
     }
     $self->close;
 }
@@ -2126,7 +2146,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 
   use Win32;
   require 5.003;
-  use Win32API::CommPort qw( :STAT 0.13 );
+  use Win32API::CommPort qw( :PARAM :STAT 0.14 );
 
   ## when available ##  use Win32API::File 0.05 qw( :ALL );
 
@@ -2142,12 +2162,12 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 =head2 Configuration Utility Methods
 
   set_no_messages(1);			# test suite use
-  nocarp || carp "Something fishy";
 
+      # exported by :PARAM
+  nocarp || carp "Something fishy";
   $a = SHORTsize;			# 0xffff
   $a = LONGsize;			# 0xffffffff
   $answer = Yes_true("choice");		# 1 or 0
-
   OS_Error unless ($API_Call_OK);	# prints error
 
   $PortObj->init_done  || die "Not done";
@@ -2262,7 +2282,9 @@ Additional useful constants may be exported eventually.
   $ModemStatus = $PortObj->is_modemlines;
   if ($ModemStatus & $PortObj->MS_RLSD_ON) { print "carrier detected"; }
 
-  $PortObj->close;	## undef $PortObj preferred
+  $PortObj->close || die;
+      # "undef $PortObj" preferred unless reopening port
+      # "close" should precede "undef" if both used
 
 =head1 DESCRIPTION
 
@@ -2352,7 +2374,9 @@ when I<initialize> has completed successfully.
   $PortObj->dtr_active(f);
   $PortObj->is_baudrate(300);
 
-  $PortObj->close;
+  $PortObj->close || die;
+      # "undef $PortObj" preferred unless reopening port
+      # "close" should precede "undef" if both used
 
   undef $PortObj;  # closes port AND frees memory in perl
 
@@ -2583,6 +2607,8 @@ will be disappointed if you try to use it as one.
 
 e.g. the following is WRONG!!____C<print $PortObj "some text";>
 
+I<Win32::SerialPort> supports accessing ports via I<Tied Filehandles>.
+
 An important note about Win32 filenames. The reserved device names such
 as C< COM1, AUX, LPT1, CON, PRN > can NOT be used as filenames. Hence
 I<"COM2.cfg"> would not be usable for B<$Configuration_File_Name>.
@@ -2604,7 +2630,7 @@ selected over performance. Since everything is (sometimes convoluted but
 still pure) perl, you can fix flaws and change limits if required. But
 please file a bug report if you do. This module has been tested with
 each of the binary perl versions for which Win32::API is supported: AS
-builds 315, 316, and 500 and GS 5.004_02. It has only been tested on
+builds 315, 316, and 500-509 and GS 5.004_02. It has only been tested on
 Intel hardware.
 
 =over 4
@@ -2625,7 +2651,7 @@ sizing.
 =item Modems
 
 Lots of modem-specific options are not supported. The same is true of
-TAPI, MAPI. Of course, I<API Wizards> are welcome to contribute.
+TAPI, MAPI. I<API Wizards> are welcome to contribute.
 
 =item API Options
 
@@ -2671,7 +2697,7 @@ this distribution work differently with ActiveState builds 3xx.
 There is no parameter checking on the "raw" API calls. You probably should
 be familiar with using the calls in "C" before doing much experimenting.
 
-On Win32, a port which has been closed cannot be reopened again by the same
+On Win32, a port must be closed before it can be reopened again by the same
 process. If a physical port can be accessed using more than one name (see
 above), all names are treated as one. Exiting and rerunning the script is ok.
 The perl script can also be run multiple times within a single batch file or
@@ -2703,7 +2729,7 @@ Perltoot.xxx - Tom (Christiansen)'s Object-Oriented Tutorial
 
 =head1 COPYRIGHT
 
-Copyright (C) 1998, Bill Birthisel. All rights reserved.
+Copyright (C) 1999, Bill Birthisel. All rights reserved.
 
 This module is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
@@ -2714,12 +2740,8 @@ This is still Beta code and may be subject to functional changes which
 are not fully backwards compatible. Version 0.12 added an I<Install.PL>
 script to put modules into the documented Namespaces. The script uses
 I<MakeMaker> tools not available in ActiveState 3xx builds. Users of
-those builds will need to install differently (see README). Some of the
-optional exports (those under the "RAW:" tag) have been renamed in this
-version. I do not know of any scripts outside the test suite which will
-be affected. All of the programs in the test suite have been modified
-for Version 0.13. They will not work with previous versions. Since the
-B<set_no_messages> function has been designated "test suite only",
-the change should not effect user scripts. 28 Nov 1998.
+those builds will need to install differently (see README). All of the
+programs in the test suite have been modified for Version 0.14. They will
+not work with previous versions. 05 Feb 1999.
 
 =cut

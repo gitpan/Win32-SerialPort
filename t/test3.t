@@ -1,19 +1,19 @@
 #! perl -w
 
-use lib './lib','../lib'; # can run from here or distribution base
+use lib '..','./lib','../lib'; # can run from here or distribution base
+require 5.003;
 
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl test?.t'
-# `perl test?.t time' pauses `time' seconds (1..5) between pages
+# Before installation is performed this script should be runnable with
+# `perl test3.t time' which pauses `time' seconds (1..5) between pages
 
 ######################### We start with some black magic to print on failure.
 
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..213\n"; }
+BEGIN { $| = 1; print "1..223\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use AltPort qw( :STAT :PARAM 0.13 );		# check inheritance & export
+use AltPort qw( :STAT :PARAM 0.14 );		# check inheritance & export
 $loaded = 1;
 print "ok 1\n";
 
@@ -550,10 +550,10 @@ is_ok("none" eq $ob->handshake("none"));	# 154
 
 $e="testing is a wonderful thing - this is a 60 byte long string";
 #   123456789012345678901234567890123456789012345678901234567890
-$out = $e.$e.$e;		# about 185 MS at 9600 baud
+my $line = $e.$e.$e;		# about 185 MS at 9600 baud
 
 $tick=Win32::GetTickCount();
-$pass=$ob->write($out);
+$pass=$ob->write($line);
 $tock=Win32::GetTickCount();
 
 is_ok($pass == 180);				# 155
@@ -645,42 +645,43 @@ if ($naptime) {
     sleep $naptime;
 }
 
-## 194 - 206: Other Misc. Tests
+## 194 - 208: Other Misc. Tests
 
 is_ok(scalar $ob->can_rlsd_config);		# 194
 @opts = $ob->can_rlsd_config;
 is_ok(test_bin_list(@opts));			# 195
 
 is_ok($ob->suspend_tx);				# 196
-is_ok(scalar $ob->dtr_active(1));			# 197
-is_ok(scalar $ob->rts_active(1));			# 198
-is_ok(scalar $ob->break_active(1));			# 199
+is_ok(scalar $ob->dtr_active(1));		# 197
+is_ok(scalar $ob->rts_active(1));		# 198
+is_ok(scalar $ob->break_active(1));		# 199
 is_zero($ob->modemlines);			# 200
 
 sleep 1;
 
 is_ok($ob->resume_tx);				# 201
-is_ok(scalar $ob->dtr_active(0));			# 202
-is_ok(scalar $ob->rts_active(0));			# 203
-is_ok(scalar $ob->break_active(0));			# 204
+is_ok(scalar $ob->dtr_active(0));		# 202
+is_ok(scalar $ob->rts_active(0));		# 203
+is_ok(scalar $ob->break_active(0));		# 204
 is_zero($ob->is_modemlines);			# 205
-is_ok(scalar $ob->debug_comm(1));			# 206
-is_zero(scalar $ob->debug_comm(0));			# 207
+is_ok(scalar $ob->debug_comm(1));		# 206
+is_zero(scalar $ob->debug_comm(0));		# 207
 
+is_ok(1 == $ob->close);				# 208
 undef $ob;
 
-## 208 - 210: Check File Headers
+## 209 - 211: Check File Headers
 
-is_ok(open CF, "$cfgfile");			# 208
+is_ok(open CF, "$cfgfile");			# 209
 my ($signature, $name, @values) = <CF>;
 close CF;
 
-is_ok(1 == grep(/SerialPort_Configuration_File/, $signature));	# 209
+is_ok(1 == grep(/SerialPort_Configuration_File/, $signature));	# 210
 
 chomp $name;
-is_ok($name eq $file);				# 210
+is_ok($name eq $file);				# 211
 
-## 211 - 212: Check that Values listed exactly once
+## 212 - 213: Check that Values listed exactly once
 
 $fault = 0;
 foreach $e (@values) {
@@ -689,16 +690,79 @@ foreach $e (@values) {
     $fault++ if ($out eq "");
     $required_param{$in}++;
     }
-is_zero($fault);				# 211
+is_zero($fault);				# 212
 
 $fault = 0;
 foreach $e (@necessary_param) {
     $fault++ unless ($required_param{$e} ==1);
     }
-is_zero($fault);				# 212
+is_zero($fault);				# 213
+
+if ($naptime) {
+    print "++++ page break\n";
+    sleep $naptime;
+}
+
+## 214 - 222: Reopen as (mostly 5.003 Compatible) Tie using File 
+
+    # constructor = TIEHANDLE method		# 214
+unless (is_ok ($ob = tie(*PORT,'Win32::SerialPort', $cfgfile))) {
+    printf "could not reopen port from $cfgfile\n";
+    exit 1;
+    # next test would die at runtime without $ob
+}
+
+    # tie to PRINT method
+$tick=Win32::GetTickCount();
+$pass=print PORT $line;
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 215
+$err=$tock - $tick;
+is_bad (($err < 160) or ($err > 210));		# 216
+print "<185> elapsed time=$err\n";
+
+    # tie to PRINTF method
+$tick=Win32::GetTickCount();
+if ( $] < 5.004 ) {
+    $out=sprintf "123456789_%s_987654321", $line;
+    $pass=print PORT $out;
+}
+else {
+    $pass=printf PORT "123456789_%s_987654321", $line;
+}
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 217
+$err=$tock - $tick;
+is_bad (($err < 180) or ($err > 235));		# 218
+print "<205> elapsed time=$err\n";
+
+    # tie to READLINE method
+is_ok (500 == $ob->read_const_time(500));	# 219
+$tick=Win32::GetTickCount();
+$fail = <PORT>;
+$tock=Win32::GetTickCount();
+
+is_bad(defined $fail);				# 220
+$err=$tock - $tick;
+is_bad (($err < 480) or ($err > 540));		# 221
+print "<500> elapsed time=$err\n";
+
+    # destructor = CLOSE method
+if ( $] < 5.005 ) {
+    is_ok($ob->close);				# 222
+}
+else {
+    is_ok(close PORT);				# 222
+}
+
+    # destructor = DESTROY method
+undef $ob;					# Don't forget this one!!
+untie *PORT;
 
 no strict 'vars';	# turn off strict in order to check
 			# "RAW" symbols not exported by default
 
-is_bad(defined $CloseHandle);			# 213
+is_bad(defined $CloseHandle);			# 223
 $CloseHandle = 1;	# for "-w"

@@ -102,3 +102,18 @@ Revision history for Perl extension Win32API::SerialPort.
 	- All t/test* files modified - test4.plx extensively (testing
 	  new functions)
 
+0.14  Sun Feb 07 23:41:00 1999
+	- Fourth public beta
+	- Add Tied FileHandle support (MAJOR ENHANCEMENT)
+	- Several enhancments to lookfor:
+	    Explicit Regular Expression support much like expect
+	    Block until $count characters received option
+            Both match_pattern and input_that_matched returned by lastlook
+	- Fix bug in CloseHandle with prevented reopening port in same
+	  process. Add return value to "close" method.
+	- Revise Makefile.PL to improve test suite support for Build_3xx
+	- Add "$no_silly_warnings" to CommPort for Build_3xx
+	- Numerous documentation changes
+	- Delete never-used "dosmode" constructor
+	- add demo6.plx and t/test6.t for tied FileHandles
+

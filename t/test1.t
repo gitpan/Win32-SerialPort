@@ -1,19 +1,19 @@
 #! perl -w
 
 use lib './lib','../lib'; # can run from here or distribution base
+require 5.003;
 
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl test?.t'
-# `perl test?.t time' pauses `time' seconds (1..5) between pages
+# Before installation is performed this script should be runnable with
+# `perl test1.t time' which pauses `time' seconds (1..5) between pages
 
 ######################### We start with some black magic to print on failure.
 
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..188\n"; }
+BEGIN { $| = 1; print "1..198\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use Win32::SerialPort 0.13;
+use Win32::SerialPort 0.14;
 $loaded = 1;
 print "ok 1\n";
 
@@ -532,10 +532,10 @@ is_ok("none" eq $ob->handshake("none"));	# 144
 
 $e="testing is a wonderful thing - this is a 60 byte long string";
 #   123456789012345678901234567890123456789012345678901234567890
-$out = $e.$e.$e;		# about 185 MS at 9600 baud
+my $line = $e.$e.$e;		# about 185 MS at 9600 baud
 
 $tick=Win32::GetTickCount();
-$pass=$ob->write($out);
+$pass=$ob->write($line);
 $tock=Win32::GetTickCount();
 
 is_ok($pass == 180);				# 145
@@ -618,7 +618,7 @@ is_ok(test_bin_list(@opts));			# 176
 is_zero(scalar $ob->error_msg);			# 177
 is_ok(1 == $ob->error_msg(1));			# 178
 
-## 179 - 183: Save and Check Configuration
+## 179 - 184: Save and Check Configuration
 
 is_ok(scalar $ob->save($cfgfile));		# 179
 
@@ -626,21 +626,21 @@ is_ok(9600 == $ob->baudrate);			# 180
 is_ok("none" eq $ob->parity);			# 181
 is_ok(8 == $ob->databits);			# 182
 is_ok(1 == $ob->stopbits);			# 183
-
+is_ok(1 == $ob->close);				# 184
 undef $ob;
 
-## 184 - 186: Check File Headers
+## 185 - 187: Check File Headers
 
-is_ok(open CF, "$cfgfile");			# 184
+is_ok(open CF, "$cfgfile");			# 185
 my ($signature, $name, @values) = <CF>;
 close CF;
 
-is_ok(1 == grep(/SerialPort_Configuration_File/, $signature));	# 185
+is_ok(1 == grep(/SerialPort_Configuration_File/, $signature));	# 186
 
 chomp $name;
-is_ok($name eq $file);				# 186
+is_ok($name eq $file);				# 187
 
-## 187 - 188: Check that Values listed exactly once
+## 188 - 189: Check that Values listed exactly once
 
 $fault = 0;
 foreach $e (@values) {
@@ -649,10 +649,74 @@ foreach $e (@values) {
     $fault++ if ($out eq "");
     $required_param{$in}++;
     }
-is_zero($fault);				# 187
+is_zero($fault);				# 188
 
 $fault = 0;
 foreach $e (@necessary_param) {
     $fault++ unless ($required_param{$e} ==1);
     }
-is_zero($fault);				# 188
+is_zero($fault);				# 189
+
+## 190 - 198: Reopen as (mostly 5.003 Compatible) Tie using File 
+
+    # constructor = TIEHANDLE method		# 190
+unless (is_ok ($ob = tie(*PORT,'Win32::SerialPort', $cfgfile))) {
+    printf "could not reopen port from $cfgfile\n";
+    exit 1;
+    # next test would die at runtime without $ob
+}
+
+if ($naptime) {
+    print "++++ page break\n";
+    sleep $naptime;
+}
+
+    # tie to PRINT method
+$tick=Win32::GetTickCount();
+$pass=print PORT $line;
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 191
+$err=$tock - $tick;
+is_bad (($err < 160) or ($err > 210));		# 192
+print "<185> elapsed time=$err\n";
+
+    # tie to PRINTF method
+$tick=Win32::GetTickCount();
+if ( $] < 5.004 ) {
+    $out=sprintf "123456789_%s_987654321", $line;
+    $pass=print PORT $out;
+}
+else {
+    $pass=printf PORT "123456789_%s_987654321", $line;
+}
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 193
+$err=$tock - $tick;
+is_bad (($err < 180) or ($err > 235));		# 194
+print "<205> elapsed time=$err\n";
+
+    # tie to READLINE method
+is_ok (500 == $ob->read_const_time(500));	# 195
+$tick=Win32::GetTickCount();
+$fail = <PORT>;
+$tock=Win32::GetTickCount();
+
+is_bad(defined $fail);				# 196
+$err=$tock - $tick;
+is_bad (($err < 480) or ($err > 540));		# 197
+print "<500> elapsed time=$err\n";
+
+    # destructor = CLOSE method
+if ( $] < 5.005 ) {
+    is_ok($ob->close);				# 198
+}
+else {
+    is_ok(close PORT);				# 198
+}
+
+    # destructor = DESTROY method
+undef $ob;					# Don't forget this one!!
+untie *PORT;
+

@@ -19,6 +19,8 @@
 		<LI><A HREF="#Configuration_Utility_Methods">Configuration Utility Methods</A>
 		<LI><A HREF="#Configuration_Parameter_Methods">Configuration Parameter Methods</A>
 		<LI><A HREF="#Operating_Methods">Operating Methods</A>
+		<LI><A HREF="#Methods_used_with_Tied_FileHandl">Methods used with Tied FileHandles</A>
+		<LI><A HREF="#Destructors">Destructors</A>
 		<LI><A HREF="#Methods_for_I_O_Processing">Methods for I/O Processing</A>
 		<LI><A HREF="#Capability_Methods_inherited_fro">Capability Methods inherited from Win32API::CommPort</A>
 		<LI><A HREF="#Operating_Methods_inherited_from">Operating Methods inherited from Win32API::CommPort</A>
@@ -67,7 +69,7 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 </A></H1>
 <PRE>  use Win32;
   require 5.003;
-  use Win32::SerialPort qw( :STAT 0.13 );
+  use Win32::SerialPort qw( :STAT 0.14 );
 </PRE>
 
 <P>
@@ -89,6 +91,12 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 
 <P>
 
+<PRE>  $PortObj = tie (*FH, 'Win32::SerialPort', $Configuration_File_Name)
+       || die &quot;Can't tie using $Configuration_File_Name: $^E\n&quot;;
+</PRE>
+
+<P>
+
 <P>
 <HR>
 <H2><A NAME="Configuration_Utility_Methods">Configuration Utility Methods
@@ -99,7 +107,7 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 
 <P>
 
-<PRE>     # before using start
+<PRE>     # before using start, restart, or tie
   $PortObj-&gt;save($Configuration_File_Name)
        || warn &quot;Can't save $Configuration_File_Name: $^E\n&quot;;
 </PRE>
@@ -255,7 +263,53 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 
 <P>
 
-<PRE>  $PortObj-&gt;close;      ## passed to CommPort; undef $PortObj preferred
+<P>
+<HR>
+<H2><A NAME="Methods_used_with_Tied_FileHandl">Methods used with Tied FileHandles
+
+</A></H2>
+<PRE>  $PortObj = tie (*FH, 'Win32::SerialPort', $Configuration_File_Name)
+       || die &quot;Can't tie: $^E\n&quot;;            ## TIEHANDLE ##
+</PRE>
+
+<P>
+
+<PRE>  print FH &quot;text&quot;;                           ## PRINT     ##
+  $char = getc FH;                           ## GETC      ##
+  syswrite FH, $out, length($out), 0;        ## WRITE     ##
+  $line = &lt;FH&gt;;                              ## READLINE  ##
+  printf FH &quot;received: %s&quot;, $line;           ## PRINTF    ##
+  read (FH, $in, 5, 0) or die &quot;$^E&quot;;         ## READ      ##
+  sysread (FH, $in, 5, 0) or die &quot;$^E&quot;;      ## READ      ##
+  close FH || warn &quot;close failed&quot;;           ## CLOSE     ##
+  undef $PortObj;
+  untie *FH;                                 ## DESTROY   ##
+</PRE>
+
+<P>
+
+<P>
+<HR>
+<H2><A NAME="Destructors">Destructors
+
+</A></H2>
+<PRE>  $PortObj-&gt;close || warn &quot;close failed&quot;;
+      # passed to CommPort to release port to OS - needed to reopen
+      # close will not usually DESTROY the object
+      # also called as: close FH || warn &quot;close failed&quot;;
+</PRE>
+
+<P>
+
+<PRE>  undef $PortObj;
+      # preferred unless reopen expected since it triggers DESTROY
+      # calls $PortObj-&gt;close but does not confirm success
+      # MUST precede untie - do all three IN THIS SEQUENCE before re-tie.
+</PRE>
+
+<P>
+
+<PRE>  untie *FH;
 </PRE>
 
 <P>
@@ -265,7 +319,7 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 <H2><A NAME="Methods_for_I_O_Processing">Methods for I/O Processing
 
 </A></H2>
-<PRE>  $PortObj-&gt;are_match(&quot;pattern&quot;, &quot;\n&quot;); # possible end strings
+<PRE>  $PortObj-&gt;are_match(&quot;text&quot;, &quot;\n&quot;);    # possible end strings
   $PortObj-&gt;lookclear;                  # empty buffers
   $PortObj-&gt;write(&quot;Feed Me:&quot;);          # initial prompt
   $PortObj-&gt;is_prompt(&quot;More Food:&quot;);    # new prompt after &quot;kill&quot; char
@@ -283,9 +337,23 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 
 <P>
 
-<PRE>  printf &quot;gotit = %s\n&quot;, $gotit;                # input before the match
-  my ($match, $after) = $PortObj-&gt;lastlook;     # match and input after
-  printf &quot;lastlook-match = %s  -after = %s\n&quot;, $match, $after;
+<PRE>  printf &quot;gotit = %s\n&quot;, $gotit;                # input BEFORE the match
+  my ($match, $after, $pattern) = $PortObj-&gt;lastlook;
+      # input that MATCHED, input AFTER the match, PATTERN that matched
+  printf &quot;lastlook-match = %s  -after = %s  -pattern = %s\n&quot;,
+                           $match,      $after,        $pattern;
+</PRE>
+
+<P>
+
+<PRE>  $gotit = $PortObj-&gt;lookfor($count);   # block until $count chars received
+</PRE>
+
+<P>
+
+<PRE>  $PortObj-&gt;are_match(&quot;-re&quot;, &quot;pattern&quot;, &quot;text&quot;);
+      # possible match strings: &quot;pattern&quot; is a regular expression,
+      #                         &quot;text&quot; is a literal string
 </PRE>
 
 <P>
@@ -371,13 +439,6 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 <H2><A NAME="Methods_not_yet_Implemented">Methods not yet Implemented
 
 </A></H2>
-<PRE>  # no demand for this one yet - may never exist
-  $PortObj = dosmode Win32::SerialPort ($MS_Dos_Mode_String)
-       || die &quot;Can't complete dosmode open: $^E\n&quot;;
-</PRE>
-
-<P>
-
 <PRE>  $PortObj-&gt;ignore_null(No);
   $PortObj-&gt;ignore_no_dsr(No);
   $PortObj-&gt;abort_on_error(&quot;no&quot;);
@@ -485,7 +546,7 @@ The <STRONG>handshake</STRONG> setting is recommended but no longer required. Se
 
 Some individual parameters (eg. baudrate) can be changed after the
 initialization is completed. These will be validated and will update the <EM>Device Control Block</EM> as required. The <STRONG>save</STRONG>
-method will write the current parameters to a file that <STRONG>start</STRONG> and
+method will write the current parameters to a file that <STRONG>start, tie,</STRONG> and
 <STRONG>restart</STRONG> can use to reestablish a functional setup.
 
 
@@ -523,7 +584,7 @@ method will write the current parameters to a file that <STRONG>start</STRONG> a
 
 <P>
 
-<PRE>  undef $PortObj;  # closes port AND frees memory in perl
+<PRE>  undef $PortObj;  # closes port AND frees memory back to perl
 </PRE>
 
 <P>
@@ -575,15 +636,30 @@ object is ready for access.
 
 <P>
 
-A possible third constructor, <STRONG>dosmode</STRONG>, is a further simplification. The parameters are specified as in the <CODE>MS-DOS 6.x "MODE" command</CODE>. Unspecified parameters would be set to plausible ``DOS like'' defaults.
-Once created, all of the <EM>parameter settings</EM> would be available.
+The third constructor, <STRONG>tie</STRONG>, combines the <STRONG>start</STRONG> with Perl's support for tied FileHandles (see <EM>perltie</EM>). Win32::Serialport implements the complete set of methods: TIEHANDLE,
+PRINT, PRINTF, WRITE, READ, GETC, READLINE, CLOSE, and DESTROY. Tied
+FileHandle support is new with Version 0.14 and should be considered
+experimental. The implementation attempts to mimic STDIN/STDOUT behaviour
+as closely as possible: calls block until done, data strings that exceed
+internal buffers are divided transparently into multiple calls, and <STRONG>stty_ocrnl</STRONG>
+is applied to output data (WRITE, PRINT, PRINTF).
 
 
 <P>
 
-<PRE>  $PortObj3 = dosmode Win32::SerialPort ($MS_Dos_Mode_String)
-       || die &quot;Can't complete dosmode open: $^E\n&quot;;
+<PRE>  $PortObj2 = tie (*FH, 'Win32::SerialPort', $Configuration_File_Name)
+       || die;
 </PRE>
+
+<P>
+
+The tied FileHandle methods may be combined with the Win32::SerialPort
+methods for <STRONG>read, input</STRONG>, and <STRONG>write</STRONG> as well as other methods. The typical restrictions against mixing <STRONG>print</STRONG> with <STRONG>syswrite</STRONG> do not apply. Since both <STRONG>(tied) read</STRONG> and <STRONG>sysread</STRONG> call the same <CODE>$ob-&gt;READ</CODE>
+method, and since a separate <CODE>$ob-&gt;read</CODE> method has existed for some time in Win32::SerialPort, you should always
+use <STRONG>sysread</STRONG> with the tied interface. Because all the tied methods block, they should
+ALWAYS be used with timeout settings and are not suitable for background
+operations and polled loops.
+
 
 <P>
 
@@ -741,9 +817,8 @@ embedded knowledge of Unix communication line and login practices.
 
 <P>
 
-Version 0.13 adds the primative functions required to implement this
-feature. There is not a unified <STRONG>stty</STRONG> method yet. But a number of methods named <STRONG>stty_xxx</STRONG> do what an <EM>experienced stty user</EM> would expect. Unlike <STRONG>stty</STRONG> on Unix, the <STRONG>stty_xxx</STRONG> operations apply only to I/O processed via the <STRONG>lookfor</STRONG> method. The <STRONG>read, input, read_done, write</STRONG>
-methods all treat data as ``raw''.
+Version 0.13 added the primative functions required to implement this
+feature. There is not a unified <STRONG>stty</STRONG> method yet. But a number of methods named <STRONG>stty_xxx</STRONG> do what an <EM>experienced stty user</EM> would expect. Unlike <STRONG>stty</STRONG> on Unix, the <STRONG>stty_xxx</STRONG> operations apply only to I/O processed via the <STRONG>lookfor</STRONG> method or the <EM>tied FileHandle</EM> methods. The <STRONG>read, input, read_done, write</STRONG> methods all treat data as ``raw''.
 
 
 <P>
@@ -933,13 +1008,55 @@ pattern is a line-termination. But there are also requirements to search
 for other strings in the input such as ``username:'' and ``password:''. The
 <STRONG>lookfor</STRONG> method provides a consistant mechanism for solving this problem. It
 searches input character-by-character looking for a match to any of the
-elements of an array set using the <STRONG>are_match</STRONG> method. It returns the entire input before the match pattern if a match is
+elements of an array set using the <STRONG>are_match</STRONG> method. It returns the entire input up to the match pattern if a match is
 found. If no match is found, it returns ``'' unless an input error or abort
-is detected (which returns undef). The <STRONG>lookfor</STRONG> method is designed to be sampled periodically (polled). Any characters
-after the match pattern are saved for a subsequent
-<STRONG>lookfor</STRONG>. The actual match and the characters after it (if any) may also be viewed
-using the <STRONG>lastlook</STRONG> method. The default <STRONG>are_match</STRONG> list is
-<CODE>("\n")</CODE> which matches complete lines.
+is detected (which returns undef).
+
+
+<P>
+
+The actual match and the characters after it (if any) may also be viewed
+using the <STRONG>lastlook</STRONG> method. In Version 0.13, the match test included a <CODE>s/$pattern//s</CODE> test which worked fine for literal text but returned the <EM>Regular Expression</EM> that matched when <CODE>$pattern</CODE> contained any Perl metacharacters. That was probably a bug - although no
+one reported it.
+
+
+<P>
+
+In Version 0.14, <STRONG>lastlook</STRONG> returns both the input and the pattern from the match test. It also adopts
+the convention from Expect.pm that match strings are literal text (tested
+using <STRONG>index</STRONG>) unless preceeded in the
+<STRONG>are_match</STRONG> list by a <STRONG>"-re",</STRONG> entry. The default <STRONG>are_match</STRONG> list is <CODE>("\n")</CODE>, which matches complete lines.
+
+
+<P>
+
+<PRE>   my ($match, $after, $pattern) = $PortObj-&gt;lastlook;
+     # input that MATCHED, input AFTER the match, PATTERN that matched
+</PRE>
+
+<P>
+
+<PRE>   $PortObj-&gt;are_match(&quot;text1&quot;, &quot;-re&quot;, &quot;pattern&quot;, &quot;text2&quot;);
+     # possible match strings: &quot;pattern&quot; is a regular expression,
+     #                         &quot;text1&quot; and &quot;text2&quot; are literal strings
+</PRE>
+
+<P>
+
+The <EM>Regular Expression</EM> handling in <STRONG>lastlook</STRONG> should be considered VERY experimental. Please let me know if you use it
+(or can't use it), so I can confirm bug fixes don't break your code. For
+literal strings,
+<CODE>$match</CODE> and <CODE>$pattern</CODE> should be identical.
+
+
+<P>
+
+The <STRONG>lookfor</STRONG> method is designed to be sampled periodically (polled). Any characters
+after the match pattern are saved for a subsequent <STRONG>lookfor</STRONG>. Internally, <STRONG>lookfor</STRONG> is implemented using the nonblocking <STRONG>input</STRONG> method when called with no parameter. If called with a count, <STRONG>lookfor</STRONG> calls
+<CODE>$PortObj-</CODE><CODE>read(count)></CODE> which blocks until the <STRONG>read</STRONG> is <EM>Complete</EM> or a &lt;Timeout&gt; occurs. The blocking alternative should not be used unless a
+fault time has been defined using <STRONG>read_interval, read_const_time, and
+read_char_time</STRONG>. It exists mostly to support the <EM>tied FileHandle</EM>
+functions <STRONG>sysread, getc,</STRONG> and <STRONG>&lt;&gt;</STRONG>.
 
 
 <P>
@@ -953,7 +1070,7 @@ case (but nothing is ``looped back''). You will want
 
 <P>
 
-The functionality of <STRONG>lookfor</STRONG> includes a limited subset of the capabilities found in Austin Schutz's <EM>Expect.pm</EM> for Unix (and Tcl's expect which it resembles). The <CODE>$before, $match, $after</CODE> return values are available if someone needs to create an ``expect''
+The functionality of <STRONG>lookfor</STRONG> includes a limited subset of the capabilities found in Austin Schutz's <EM>Expect.pm</EM> for Unix (and Tcl's expect which it resembles). The <CODE>$before, $match, $pattern, and $after</CODE> return values are available if someone needs to create an ``expect''
 subroutine for porting a script.
 
 
@@ -1024,7 +1141,8 @@ Sometimes, you want perl to echo input characters back to the serial device
 <H1><A NAME="NOTES">NOTES
 
 </A></H1>
-The object returned by <STRONG>new</STRONG> or <STRONG>start</STRONG> is NOT a <EM>Filehandle</EM>. You will be disappointed if you try to use it as one.
+The object returned by <STRONG>new</STRONG> or <STRONG>start</STRONG> is NOT a <EM>FileHandle</EM>. You will be disappointed if you try to use it as one. If you need a
+<EM>FileHandle</EM>, you must use <STRONG>tie</STRONG> as the constructor.
 
 
 <P>
@@ -1032,6 +1150,52 @@ The object returned by <STRONG>new</STRONG> or <STRONG>start</STRONG> is NOT a <
 e.g. the following is WRONG!!____<CODE>print $PortObj "some text";</CODE>
 
 
+
+
+<P>
+
+You need something like this (Perl 5.005):
+
+
+<P>
+
+<PRE>        # construct
+    $tie_ob = tie(*FOO,'Win32::SerialPort', $cfgfile)
+                 or die &quot;Can't start $cfgfile\n&quot;;
+</PRE>
+
+<P>
+
+<PRE>    print FOO &quot;enter char: &quot;; # destination is FileHandle, not Object
+    my $in = getc FOO;
+    syswrite FOO, &quot;$in\n&quot;, 2, 0;
+    print FOO &quot;enter line: &quot;;
+    $in = &lt;FOO&gt;;
+    printf FOO &quot;received: %s\n&quot;, $in;
+    print FOO &quot;enter 5 char: &quot;;
+    sysread (FOO, $in, 5, 0) or die;
+    printf FOO &quot;received: %s\n&quot;, $in;
+</PRE>
+
+<P>
+
+<PRE>        # destruct
+    close FOO || print &quot;close failed\n&quot;;
+    undef $tie_ob;      # Don't forget this one!!
+    untie *FOO;
+</PRE>
+
+<P>
+
+Always include the <STRONG>undef $tie_ob</STRONG> before the <STRONG>untie</STRONG>. See the <EM>Gotcha</EM>
+description in <EM>perltie</EM>.
+
+
+<P>
+
+The Perl 5.004 implementation of <EM>tied FileHandles</EM> is missing
+<STRONG>close</STRONG> and <STRONG>syswrite</STRONG>. The Perl 5.003 version is essentially unusable. If you need these
+functions, consider Perl 5.005 seriously.
 
 
 <P>
@@ -1057,24 +1221,23 @@ Thanks to Ken White for testing on NT.
 Since everything is (sometimes convoluted but still pure) perl, you can fix
 flaws and change limits if required. But please file a bug report if you
 do. This module has been tested with each of the binary perl versions for
-which Win32::API is supported: AS builds 315, 316, and 500 and GS 5.004_02.
+which Win32::API is supported: AS builds 315, 316, 500-509 and GS 5.004_02.
 It has only been tested on Intel hardware.
 
 
 <P>
 
-The <STRONG>lookfor</STRONG> and <STRONG>stty_xxx</STRONG> mechanisms should be considered experimental. The have only been tested on
+The <STRONG>lookfor, stty_xxx, and Tied FileHandle</STRONG> mechanisms should be considered experimental. They have only been tested on
 a small subset of possible applications. While ``\r'' characters may be
-included in the clear string using <STRONG>is_stty_clear</STRONG>
-internally, ``\n'' characters may NOT be included in multi-character
+included in the clear string using <STRONG>is_stty_clear</STRONG> internally, ``\n'' characters may NOT be included in multi-character
 strings if you plan to save the strings in a configuration file (which uses
 ``\n'' as an internal terminator).
 
 
 <P>
 
-There have been several changes to the configuration file. You should
-rewrite any existing files.
+Version 0.13 made several changes to the configuration file. You should
+rewrite any earlier files.
 
 
 <P>
@@ -1085,7 +1248,7 @@ rewrite any existing files.
 </A></STRONG><DD>
 With all the options, this module needs a good tutorial. It doesn't have a
 complete one yet. A <EM>"How to get started"</EM> tutorial will appear in
-<STRONG>The Perl Journal #12</STRONG> (December 1998). The demo programs are a good starting point for additional
+<STRONG>The Perl Journal #13</STRONG> (March 1999). The demo programs are a good starting point for additional
 examples.
 
 
@@ -1096,7 +1259,8 @@ examples.
 </A></STRONG><DD>
 The size of the Win32 buffers are selectable with <STRONG>buffers</STRONG>. But each read method currently uses a fixed internal buffer of 4096
 bytes. There are other fixed internal buffers as well. The XS version will
-support dynamic buffer sizing.
+support dynamic buffer sizing. Large operations are automatically converted
+to multiple smaller ones by the <STRONG>tied FileHandle</STRONG> methods.
 
 
 <P>
@@ -1105,7 +1269,7 @@ support dynamic buffer sizing.
 
 </A></STRONG><DD>
 Lots of modem-specific options are not supported. The same is true of TAPI,
-MAPI. Of course, <EM>API Wizards</EM> are welcome to contribute.
+MAPI. <EM>API Wizards</EM> are welcome to contribute.
 
 
 <P>
@@ -1166,7 +1330,7 @@ Write_total = <STRONG>write_const_time</STRONG> + (<STRONG>write_char_time</STRO
 <H1><A NAME="BUGS">BUGS
 
 </A></H1>
-On Win32, a port which has been closed cannot be reopened again by the same
+On Win32, a port must be closed before it can be reopened again by the same
 process. If a physical port can be accessed using more than one name (see
 above), all names are treated as one. Exiting and rerunning the script is
 ok. The perl script can also be run multiple times within a single batch
@@ -1217,7 +1381,7 @@ HREF="http://www.metronet.com/~tye/.">http://www.metronet.com/~tye/.</A>
 <H1><A NAME="SEE_ALSO">SEE ALSO
 
 </A></H1>
-Win32API::Comm - the low-level API calls which support this module
+Win32API::CommPort - the low-level API calls which support this module
 
 
 <P>
@@ -1240,12 +1404,17 @@ Perltoot.xxx - Tom (Christiansen)'s Object-Oriented Tutorial
 
 <P>
 
+Expect.pm - Austin Schutz's adaptation of TCL's ``expect'' for Unix Perls
+
+
+<P>
+
 <P>
 <HR>
 <H1><A NAME="COPYRIGHT">COPYRIGHT
 
 </A></H1>
-Copyright (C) 1998, Bill Birthisel. All rights reserved.
+Copyright (C) 1999, Bill Birthisel. All rights reserved.
 
 
 <P>
@@ -1265,13 +1434,11 @@ This is still Beta code and may be subject to functional changes which are
 not fully backwards compatible. Version 0.12 added an <EM>Install.PL</EM>
 script to put modules into the documented Namespaces. The script uses
 <EM>MakeMaker</EM> tools not available in ActiveState 3xx builds. Users of those builds will
-need to install differently (see README). Some of the optional exports
-(those under the ``RAW:'' tag) have been renamed in this version. I do not
-know of any scripts outside the test suite which will be affected. All of
-the programs in the test suite have been modified for Version 0.13. They
-will not work with previous versions. Since the
-<STRONG>set_test_mode_active</STRONG> function has been designated ``test suite only'', the change should not
-effect user scripts. 28 Nov 1998.
+need to install differently (see README). The <STRONG>lastlook</STRONG>
+method returns additional data in a way possibly incompatible with Version
+0.13 (although I don't know of any relevant examples). All of the programs
+in the test suite have been modified for Version 0.14. They will not work
+with previous versions. 05 Feb 1999.
 
 
 <P>

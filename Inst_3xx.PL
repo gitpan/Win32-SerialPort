@@ -16,7 +16,7 @@ sub CheckDir {
 }    
 
 $MODULE  = "Win32::SerialPort";
-$VERSION = "0.13";
+$VERSION = "0.14";
 
 print "\n   $MODULE version $VERSION Install Program for Build 3xx\n";
 print   "   Adapted from Win32::API Install Program\n";

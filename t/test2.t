@@ -1,19 +1,19 @@
 #! perl -w
 
 use lib './lib','../lib'; # can run from here or distribution base
+require 5.003;
 
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl test?.t'
-# `perl test?.t time' pauses `time' seconds (1..5) between pages
+# Before installation is performed this script should be runnable with
+# `perl test2.t time' which pauses `time' seconds (1..5) between pages
 
 ######################### We start with some black magic to print on failure.
 
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..136\n"; }
+BEGIN { $| = 1; print "1..138\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use Win32::SerialPort 0.13;
+use Win32::SerialPort 0.14;
 $loaded = 1;
 print "ok 1\n";
 
@@ -442,4 +442,15 @@ is_ok(1 == $ob->error_msg);			# 134
 is_zero(scalar $ob->error_msg(0));		# 135
 is_ok(1 == $ob->error_msg(1));			# 136
 
+undef $ob;
+
+# 137 - 138: Reopen tests (unconfirmed) $ob->close via undef
+
+sleep 1;
+unless (is_ok ($ob = Win32::SerialPort->start ($cfgfile))) {
+    printf "could not reopen port from $cfgfile\n";
+    exit 1;
+    # next test would die at runtime without $ob
+}
+is_ok(1 == $ob->close);				# 138
 undef $ob;

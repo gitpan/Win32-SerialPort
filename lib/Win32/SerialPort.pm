@@ -1,13 +1,13 @@
 package Win32::SerialPort;
 
 use Win32;
-use Win32API::CommPort qw( :STAT :PARAM 0.13 );
+use Win32API::CommPort qw( :STAT :PARAM 0.14 );
 
 use Carp;
 use strict;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION = '0.13';
+$VERSION = '0.14';
 
 require Exporter;
 ## require AutoLoader;
@@ -105,6 +105,7 @@ sub new {
     $self->{"_LOOK"}		= "";
     $self->{"_LASTLOOK"}	= "";
     $self->{"_LMATCH"}		= "";
+    $self->{"_LPATT"}		= "";
     $self->{"_PROMPT"}		= "";
     $self->{"_MATCH"}		= [];
     @{ $self->{"_MATCH"} }	= "\n";
@@ -621,6 +622,170 @@ sub save {
     1;
 }
 
+##### tied FileHandle support
+ 
+sub TIEHANDLE {
+    my $proto = shift;
+    my $class = ref($proto) || $proto;
+
+    return unless (@_);
+
+    my $self = start($class, shift);
+    return $self;
+}
+ 
+# WRITE this, LIST
+#      This method will be called when the handle is written to via the
+#      syswrite function.
+
+sub WRITE {
+    return if (@_ < 3);
+    my $self = shift;
+    my $buf = shift;
+    my $len = shift;
+    my $offset = 0;
+    if (@_) { $offset = shift; }
+    my $out2 = substr($buf, $offset, $len);
+    return unless ($self->PRINT($out2));
+    return length($out2);
+}
+
+# PRINT this, LIST
+#      This method will be triggered every time the tied handle is printed to
+#      with the print() function. Beyond its self reference it also expects
+#      the list that was passed to the print function.
+ 
+sub PRINT {
+    my $self = shift;
+    return unless (@_);
+    my $output = join("",@_);
+    if ($self->stty_onlcr) { $output =~ s/\n/\r\n/osg; }
+    my $to_do = length($output);
+    my $done = 0;
+    my $written = 0;
+    while ($done < $to_do) {
+        my $out2 = substr($output, $done);
+        $written = $self->write($out2);
+	if (! defined $written) {
+	    $ = 1121; # timeout
+            return;
+        }
+	return 0 unless ($written);
+	$done += $written;
+    }
+    $ = 0;
+    1;
+}
+ 
+# PRINTF this, LIST
+#      This method will be triggered every time the tied handle is printed to
+#      with the printf() function. Beyond its self reference it also expects
+#      the format and list that was passed to the printf function.
+ 
+sub PRINTF {
+    my $self = shift;
+    my $fmt = shift;
+    return unless ($fmt);
+    return unless (@_);
+    my $output = sprintf($fmt, @_);
+    $self->PRINT($output);
+}
+ 
+# READ this, LIST
+#      This method will be called when the handle is read from via the read
+#      or sysread functions.
+
+sub READ {
+    return if (@_ < 3);
+    my $buf = \$_[1];
+    my ($self, $junk, $len, $offset) = @_;
+    unless (defined $offset) { $offset = 0; }
+    my $done = 0;
+    my $count_in = 0;
+    my $string_in = "";
+    my $in2 = "";
+    while ($done < $len) {
+	my $size = $len - $done;
+        if ($size > 4096) { $size = 4096; }
+	($count_in, $string_in) = $self->read($size);
+	if ($count_in) {
+            $in2 .= $string_in;
+	    $done += $count_in;
+	    $ = 0;
+	}
+        else {
+	    $ = 1121; # timeout
+            return;
+        }
+    }
+    $$buf = substr($$buf, 0, $offset);
+    substr($$buf, $offset, $done) = $in2;
+    return $done;
+}
+
+# READLINE this
+#      This method will be called when the handle is read from via <HANDLE>.
+#      The method should return undef when there is no more data.
+ 
+sub READLINE {
+    my $self = shift;
+    return if (@_);
+    my $gotit = "";
+
+    for (;;) {
+        if (! defined ($gotit = $self->lookfor(1))) {
+	    $ = 1121; # timeout
+            return;
+        }
+        return if ($self->reset_error);
+        if ($gotit ne "") {
+	    $ = 0;
+	    my ($match, $after, $patt) = $self->lastlook;
+            return $gotit.$match;  # traditional <HANDLE> behavior
+        }
+    }
+}
+ 
+# GETC this
+#      This method will be called when the getc function is called.
+ 
+sub GETC {
+    my $self = shift;
+    my ($count, $in) = $self->read(1);
+    if ($count == 1) {
+	$ = 0;
+        return $in;
+    }
+    else {
+	$ = 1121; # timeout
+        return;
+    }
+}
+ 
+# CLOSE this
+#      This method will be called when the handle is closed via the close
+#      function.
+ 
+sub CLOSE {
+    my $self = shift;
+    my $success = $self->close;
+    if ($Verbose) { printf "CLOSE result:%d\n", $success; }
+    return $success;
+}
+ 
+# DESTROY this
+#      As with the other types of ties, this method will be called when the
+#      tied handle is about to be destroyed. This is useful for debugging and
+#      possibly cleaning up.
+ 
+sub DESTROY {
+    my $self = shift;
+    if ($Verbose) { print "SerialPort::DESTROY called.\n"; }
+    $self->SUPER::DESTROY();
+}
+ 
+###############
+
 sub alias {
     my $self = shift;
     if (@_) { $self->{ALIAS} = shift; }	# should return true for legal names
@@ -814,6 +979,7 @@ sub lookclear {
     $self->{"_LOOK"}	 = "";
     $self->{"_LASTLOOK"} = "";
     $self->{"_LMATCH"}	 = "";
+    $self->{"_LPATT"}	 = "";
     return if (@_);
     1;
 }
@@ -821,25 +987,42 @@ sub lookclear {
 sub lastlook {
     my $self = shift;
     return if (@_);
-    return ( $self->{"_LMATCH"}, $self->{"_LASTLOOK"} );
+    return ( $self->{"_LMATCH"}, $self->{"_LASTLOOK"}, $self->{"_LPATT"} );
 }
 
 sub lookfor {
     my $self = shift;
+    my $size = 0;
+    if (@_) { $size = shift; }
     my $loc = "";
     my $n_char;
     my $pos;
+    my $count_in = 0;
+    my $string_in = "";
     my $erase_is_bsdel = $self->{echo} && $self->{echoe};
     my $nl_after_kill = $self->{echo} && $self->{echok};
     my $clear_after_kill = $self->{echo} && $self->{echoke};
     my $echo_ctl = $self->{echo} && $self->{echoctl};
     my $lookbuf;
+    my $re_next = 0;
+    my $got_match = 0;
 
     if ( ! $self->{"_LOOK"} ) {
         $loc = $self->{"_LASTLOOK"};
     }
 
-    if (($loc .= $self->input) ne "") {
+    if ($size) {
+        my ($bbb, $iii, $ooo, $eee) = status($self);
+	if ($iii > $size) { $size = $iii; }
+	($count_in, $string_in) = $self->read($size);
+	return unless ($count_in);
+        $loc .= $string_in;
+    }
+    else {
+	$loc .= $self->input;
+    }
+
+    if ($loc ne "") {
 	my @loc_char = split (//, $loc);
 	while (defined ($n_char = shift @loc_char)) {
 ##	    printf STDERR "0x%x ", ord($n_char);
@@ -896,8 +1079,25 @@ sub lookfor {
 		    return $lookbuf;
 		}
 		for ( @{ $self->{"_MATCH"} } ) {
-		    if ( $lookbuf =~ s/$_$//s ) {
+		    if ($_ eq "-re") {
+			$re_next++;
+			next;
+		    }
+		    if ($re_next) {
+			$re_next = 0;
+			# always at $lookbuf end when processing single char
+		        if ( $lookbuf =~ s/($_$)//s ) {
+		            $self->{"_LMATCH"} = $1;
+			    $got_match++;
+			}
+		    }
+		    elsif (($pos = index($lookbuf, $_)) > -1) {
+			$got_match++;
+			$lookbuf = substr ($lookbuf, 0, $pos);
 		        $self->{"_LMATCH"} = $_;
+		    }
+		    if ($got_match) {
+		        $self->{"_LPATT"} = $_;
 		        if (scalar @loc_char) {
 		            $self->{"_LASTLOOK"} = join("", @loc_char);
 ##		            print ".$self->{\"_LASTLOOK\"}.";
@@ -961,6 +1161,7 @@ sub write {
 	print "lbuf=$lbuf\n";
 	print "written=$written\n";
     }
+    return unless ($ok);
     return $written;
 }
 
@@ -1150,9 +1351,13 @@ sub close {
     if ($Verbose or $self->{"_DEBUG"}) {
         carp "Closing $self " . $self->{ALIAS};
     }
-    $self->SUPER::close;
+    my $success = $self->SUPER::close;
     $self->{DEVICE} = undef;
     $self->{ALIAS} = undef;
+    if ($Verbose) {
+        printf "SerialPort close result:%d\n", $success;
+    }
+    return $success;
 }
 
 1;  # so the require or use succeeds
@@ -1171,7 +1376,7 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 
   use Win32;
   require 5.003;
-  use Win32::SerialPort qw( :STAT 0.13 );
+  use Win32::SerialPort qw( :STAT 0.14 );
 
 =head2 Constructors
 
@@ -1181,11 +1386,15 @@ Win32::SerialPort - User interface to Win32 Serial API calls
   $PortObj = start Win32::SerialPort ($Configuration_File_Name)
        || die "Can't start $Configuration_File_Name: $^E\n";
 
+  $PortObj = tie (*FH, 'Win32::SerialPort', $Configuration_File_Name)
+       || die "Can't tie using $Configuration_File_Name: $^E\n";
+
+
 =head2 Configuration Utility Methods
 
   $PortObj->alias("MODEM1");
 
-     # before using start
+     # before using start, restart, or tie
   $PortObj->save($Configuration_File_Name)
        || warn "Can't save $Configuration_File_Name: $^E\n";
 
@@ -1272,11 +1481,40 @@ action desired is a message, B<status> provides I<Built-In> BitMask processing:
   $ModemStatus = $PortObj->modemlines;
   if ($ModemStatus & $PortObj->MS_RLSD_ON) { print "carrier detected"; }
 
-  $PortObj->close;	## passed to CommPort; undef $PortObj preferred
+=head2 Methods used with Tied FileHandles
+
+  $PortObj = tie (*FH, 'Win32::SerialPort', $Configuration_File_Name)
+       || die "Can't tie: $^E\n";            ## TIEHANDLE ##
+
+  print FH "text";                           ## PRINT     ##
+  $char = getc FH;                           ## GETC      ##
+  syswrite FH, $out, length($out), 0;        ## WRITE     ##
+  $line = <FH>;                              ## READLINE  ##
+  printf FH "received: %s", $line;           ## PRINTF    ##
+  read (FH, $in, 5, 0) or die "$^E";         ## READ      ##
+  sysread (FH, $in, 5, 0) or die "$^E";      ## READ      ##
+  close FH || warn "close failed";           ## CLOSE     ##
+  undef $PortObj;
+  untie *FH;                                 ## DESTROY   ##
+
+=head2 Destructors
+
+  $PortObj->close || warn "close failed";
+      # passed to CommPort to release port to OS - needed to reopen
+      # close will not usually DESTROY the object
+      # also called as: close FH || warn "close failed";
+
+
+  undef $PortObj;
+      # preferred unless reopen expected since it triggers DESTROY
+      # calls $PortObj->close but does not confirm success
+      # MUST precede untie - do all three IN THIS SEQUENCE before re-tie.
+
+  untie *FH;
 
 =head2 Methods for I/O Processing
 
-  $PortObj->are_match("pattern", "\n");	# possible end strings
+  $PortObj->are_match("text", "\n");	# possible end strings
   $PortObj->lookclear;			# empty buffers
   $PortObj->write("Feed Me:");		# initial prompt
   $PortObj->is_prompt("More Food:");	# new prompt after "kill" char
@@ -1288,9 +1526,17 @@ action desired is a message, B<status> provides I<Built-In> BitMask processing:
       sleep 1;				# polling sample time
   }
 
-  printf "gotit = %s\n", $gotit;		# input before the match
-  my ($match, $after) = $PortObj->lastlook;	# match and input after
-  printf "lastlook-match = %s  -after = %s\n", $match, $after;
+  printf "gotit = %s\n", $gotit;		# input BEFORE the match
+  my ($match, $after, $pattern) = $PortObj->lastlook;
+      # input that MATCHED, input AFTER the match, PATTERN that matched
+  printf "lastlook-match = %s  -after = %s  -pattern = %s\n",
+                           $match,      $after,        $pattern;
+
+  $gotit = $PortObj->lookfor($count);	# block until $count chars received
+
+  $PortObj->are_match("-re", "pattern", "text");
+      # possible match strings: "pattern" is a regular expression,
+      #                         "text" is a literal string
 
   $PortObj->stty_intr("\cC");	# char to abort lookfor method
   $PortObj->stty_quit("\cD");	# char to abort perl
@@ -1346,10 +1592,6 @@ action desired is a message, B<status> provides I<Built-In> BitMask processing:
   purge_all           purge_rx               purge_tx
 
 =head2 Methods not yet Implemented
-
-  # no demand for this one yet - may never exist
-  $PortObj = dosmode Win32::SerialPort ($MS_Dos_Mode_String)
-       || die "Can't complete dosmode open: $^E\n";
 
   $PortObj->ignore_null(No);
   $PortObj->ignore_no_dsr(No);
@@ -1425,7 +1667,7 @@ of the following: "none", "rts", "xoff", "dtr".
 Some individual parameters (eg. baudrate) can be changed after the
 initialization is completed. These will be validated and will
 update the I<Device Control Block> as required. The B<save>
-method will write the current parameters to a file that B<start> and
+method will write the current parameters to a file that B<start, tie,> and
 B<restart> can use to reestablish a functional setup.
 
   $PortObj = new Win32::SerialPort ($PortName)
@@ -1445,7 +1687,7 @@ B<restart> can use to reestablish a functional setup.
 
   $PortObj->baudrate(300);
 
-  undef $PortObj;  # closes port AND frees memory in perl
+  undef $PortObj;  # closes port AND frees memory back to perl
 
 The F<PortName> maps to both the Registry I<Device Name> and the
 I<Properties> associated with that device. A single I<Physical> port
@@ -1477,14 +1719,28 @@ of a validity check. The returned object is ready for access.
   $PortObj2 = start Win32::SerialPort ($Configuration_File_Name)
        || die;
 
-A possible third constructor, B<dosmode>, is a further simplification.
-The parameters are specified as in the C<MS-DOS 6.x "MODE" command>.
-Unspecified parameters would be set to plausible "DOS like" defaults.
-Once created, all of the I<parameter settings> would be available.
+The third constructor, B<tie>, combines the B<start> with Perl's
+support for tied FileHandles (see I<perltie>). Win32::Serialport
+implements the complete set of methods: TIEHANDLE, PRINT, PRINTF,
+WRITE, READ, GETC, READLINE, CLOSE, and DESTROY. Tied FileHandle
+support is new with Version 0.14 and should be considered experimental.
+The implementation attempts to mimic STDIN/STDOUT behaviour as closely
+as possible: calls block until done, data strings that exceed internal
+buffers are divided transparently into multiple calls, and B<stty_ocrnl>
+is applied to output data (WRITE, PRINT, PRINTF).
 
-  $PortObj3 = dosmode Win32::SerialPort ($MS_Dos_Mode_String)
-       || die "Can't complete dosmode open: $^E\n";
+  $PortObj2 = tie (*FH, 'Win32::SerialPort', $Configuration_File_Name)
+       || die;
 
+The tied FileHandle methods may be combined with the Win32::SerialPort
+methods for B<read, input>, and B<write> as well as other methods. The
+typical restrictions against mixing B<print> with B<syswrite> do not
+apply. Since both B<(tied) read> and B<sysread> call the same C<$ob-E<gt>READ>
+method, and since a separate C<$ob-E<gt>read> method has existed for some
+time in Win32::SerialPort, you should always use B<sysread> with the
+tied interface. Because all the tied methods block, they should ALWAYS
+be used with timeout settings and are not suitable for background
+operations and polled loops.
 
 =head2 Configuration and Capability Methods
 
@@ -1583,12 +1839,12 @@ of stty options will be available through a B<stty> method. The purpose
 would be support of existing serial devices which have embedded knowledge
 of Unix communication line and login practices.
 
-Version 0.13 adds the primative functions required to implement this
+Version 0.13 added the primative functions required to implement this
 feature. There is not a unified B<stty> method yet. But a number of
 methods named B<stty_xxx> do what an I<experienced stty user> would expect.
 Unlike B<stty> on Unix, the B<stty_xxx> operations apply only to I/O
-processed via the B<lookfor> method. The B<read, input, read_done, write>
-methods all treat data as "raw".
+processed via the B<lookfor> method or the I<tied FileHandle> methods.
+The B<read, input, read_done, write> methods all treat data as "raw".
 
 
         The following stty functions have related SerialPort functions:
@@ -1725,13 +1981,43 @@ for other strings in the input such as "username:" and "password:". The
 B<lookfor> method provides a consistant mechanism for solving this problem.
 It searches input character-by-character looking for a match to any of the
 elements of an array set using the B<are_match> method. It returns the
-entire input before the match pattern if a match is found. If no match
+entire input up to the match pattern if a match is found. If no match
 is found, it returns "" unless an input error or abort is detected (which
-returns undef). The B<lookfor> method is designed to be sampled periodically
-(polled). Any characters after the match pattern are saved for a subsequent
-B<lookfor>. The actual match and the characters after it (if any) may also be
-viewed using the B<lastlook> method. The default B<are_match> list is
-C<("\n")> which matches complete lines.
+returns undef).
+
+The actual match and the characters after it (if any) may also be viewed
+using the B<lastlook> method. In Version 0.13, the match test included
+a C<s/$pattern//s> test which worked fine for literal text but returned
+the I<Regular Expression> that matched when C<$pattern> contained any Perl
+metacharacters. That was probably a bug - although no one reported it.
+
+In Version 0.14, B<lastlook> returns both the input and the pattern from
+the match test. It also adopts the convention from Expect.pm that match
+strings are literal text (tested using B<index>) unless preceeded in the
+B<are_match> list by a B<"-re",> entry. The default B<are_match> list
+is C<("\n")>, which matches complete lines.
+
+   my ($match, $after, $pattern) = $PortObj->lastlook;
+     # input that MATCHED, input AFTER the match, PATTERN that matched
+
+   $PortObj->are_match("text1", "-re", "pattern", "text2");
+     # possible match strings: "pattern" is a regular expression,
+     #                         "text1" and "text2" are literal strings
+
+The I<Regular Expression> handling in B<lastlook> should be considered
+VERY experimental. Please let me know if you use it (or can't use it), so
+I can confirm bug fixes don't break your code. For literal strings,
+C<$match> and C<$pattern> should be identical.
+
+The B<lookfor> method is designed to be sampled periodically (polled). Any
+characters after the match pattern are saved for a subsequent B<lookfor>.
+Internally, B<lookfor> is implemented using the nonblocking B<input> method
+when called with no parameter. If called with a count, B<lookfor> calls
+C<$PortObj->read(count)> which blocks until the B<read> is I<Complete> or
+a <Timeout> occurs. The blocking alternative should not be used unless a
+fault time has been defined using B<read_interval, read_const_time, and
+read_char_time>. It exists mostly to support the I<tied FileHandle>
+functions B<sysread, getc,> and B<E<lt>E<gt>>.
 
 The internal buffers used by B<lookfor> may be purged by the B<lookclear>
 method (which also clears the last match). For testing, B<lookclear> can
@@ -1743,8 +2029,9 @@ B<stty_echo(0)> when exercising loopback.
 
 The functionality of B<lookfor> includes a limited subset of the capabilities
 found in Austin Schutz's I<Expect.pm> for Unix (and Tcl's expect which it
-resembles). The C<$before, $match, $after> return values are available if
-someone needs to create an "expect" subroutine for porting a script.
+resembles). The C<$before, $match, $pattern, and $after> return values are
+available if someone needs to create an "expect" subroutine for porting a
+script.
 
 Because B<lookfor> can be used to manage a command-line environment much
 like a Unix serial login, a number of "stty-like" methods are included to
@@ -1785,10 +2072,39 @@ device (and other times you don't want that).
 
 =head1 NOTES
 
-The object returned by B<new> or B<start> is NOT a I<Filehandle>. You
-will be disappointed if you try to use it as one.
+The object returned by B<new> or B<start> is NOT a I<FileHandle>. You
+will be disappointed if you try to use it as one. If you need a
+I<FileHandle>, you must use B<tie> as the constructor.
 
 e.g. the following is WRONG!!____C<print $PortObj "some text";>
+
+You need something like this (Perl 5.005):
+
+        # construct
+    $tie_ob = tie(*FOO,'Win32::SerialPort', $cfgfile)
+                 or die "Can't start $cfgfile\n";
+
+    print FOO "enter char: "; # destination is FileHandle, not Object
+    my $in = getc FOO;
+    syswrite FOO, "$in\n", 2, 0;
+    print FOO "enter line: ";
+    $in = <FOO>;
+    printf FOO "received: %s\n", $in;
+    print FOO "enter 5 char: ";
+    sysread (FOO, $in, 5, 0) or die;
+    printf FOO "received: %s\n", $in;
+
+        # destruct
+    close FOO || print "close failed\n";
+    undef $tie_ob;	# Don't forget this one!!
+    untie *FOO;
+
+Always include the B<undef $tie_ob> before the B<untie>. See the I<Gotcha>
+description in I<perltie>.
+
+The Perl 5.004 implementation of I<tied FileHandles> is missing
+B<close> and B<syswrite>. The Perl 5.003 version is essentially unusable.
+If you need these functions, consider Perl 5.005 seriously.
 
 An important note about Win32 filenames. The reserved device names such
 as C< COM1, AUX, LPT1, CON, PRN > can NOT be used as filenames. Hence
@@ -1801,18 +2117,18 @@ Thanks to Ken White for testing on NT.
 Since everything is (sometimes convoluted but still pure) perl, you can
 fix flaws and change limits if required. But please file a bug report if
 you do. This module has been tested with each of the binary perl versions
-for which Win32::API is supported: AS builds 315, 316, and 500 and GS
+for which Win32::API is supported: AS builds 315, 316, 500-509 and GS
 5.004_02. It has only been tested on Intel hardware.
 
-The B<lookfor> and B<stty_xxx> mechanisms should be considered experimental.
-The have only been tested on a small subset of possible applications. While
-"\r" characters may be included in the clear string using B<is_stty_clear>
-internally, "\n" characters may NOT be included in multi-character strings
-if you plan to save the strings in a configuration file (which uses "\n"
-as an internal terminator).
+The B<lookfor, stty_xxx, and Tied FileHandle> mechanisms should be considered
+experimental. They have only been tested on a small subset of possible
+applications. While "\r" characters may be included in the clear string
+using B<is_stty_clear> internally, "\n" characters may NOT be included
+in multi-character strings if you plan to save the strings in a configuration
+file (which uses "\n" as an internal terminator).
 
-There have been several changes to the configuration file. You should
-rewrite any existing files.
+Version 0.13 made several changes to the configuration file. You should
+rewrite any earlier files.
 
 =over 4
 
@@ -1820,7 +2136,7 @@ rewrite any existing files.
 
 With all the options, this module needs a good tutorial. It doesn't
 have a complete one yet. A I<"How to get started"> tutorial will appear in
-B<The Perl Journal #12> (December 1998). The demo programs are a good
+B<The Perl Journal #13> (March 1999). The demo programs are a good
 starting point for additional examples.
 
 =item Buffers
@@ -1828,12 +2144,13 @@ starting point for additional examples.
 The size of the Win32 buffers are selectable with B<buffers>. But each read
 method currently uses a fixed internal buffer of 4096 bytes. There are other
 fixed internal buffers as well. The XS version will support dynamic buffer
-sizing.
+sizing. Large operations are automatically converted to multiple smaller
+ones by the B<tied FileHandle> methods.
 
 =item Modems
 
 Lots of modem-specific options are not supported. The same is true of
-TAPI, MAPI. Of course, I<API Wizards> are welcome to contribute.
+TAPI, MAPI. I<API Wizards> are welcome to contribute.
 
 =item API Options
 
@@ -1871,7 +2188,7 @@ Write_total = B<write_const_time> + (B<write_char_time> * bytes_to_write)
 
 =head1 BUGS
 
-On Win32, a port which has been closed cannot be reopened again by the same
+On Win32, a port must be closed before it can be reopened again by the same
 process. If a physical port can be accessed using more than one name (see
 above), all names are treated as one. Exiting and rerunning the script is ok.
 The perl script can also be run multiple times within a single batch file or
@@ -1894,7 +2211,7 @@ Tye McQueen, tye@metronet.com, http://www.metronet.com/~tye/.
 
 =head1 SEE ALSO
 
-Win32API::Comm - the low-level API calls which support this module
+Win32API::CommPort - the low-level API calls which support this module
 
 Win32API::File I<when available>
 
@@ -1902,9 +2219,11 @@ Win32::API - Aldo Calpini's "Magic", http://www.divinf.it/dada/perl/
 
 Perltoot.xxx - Tom (Christiansen)'s Object-Oriented Tutorial
 
+Expect.pm - Austin Schutz's adaptation of TCL's "expect" for Unix Perls
+
 =head1 COPYRIGHT
 
-Copyright (C) 1998, Bill Birthisel. All rights reserved.
+Copyright (C) 1999, Bill Birthisel. All rights reserved.
 
 This module is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
@@ -1915,12 +2234,10 @@ This is still Beta code and may be subject to functional changes which
 are not fully backwards compatible. Version 0.12 added an I<Install.PL>
 script to put modules into the documented Namespaces. The script uses
 I<MakeMaker> tools not available in ActiveState 3xx builds. Users of
-those builds will need to install differently (see README). Some of the
-optional exports (those under the "RAW:" tag) have been renamed in this
-version. I do not know of any scripts outside the test suite which will
-be affected. All of the programs in the test suite have been modified
-for Version 0.13. They will not work with previous versions. Since the
-B<set_test_mode_active> function has been designated "test suite only",
-the change should not effect user scripts. 28 Nov 1998.
+those builds will need to install differently (see README). The B<lastlook>
+method returns additional data in a way possibly incompatible with Version
+0.13 (although I don't know of any relevant examples). All of the
+programs in the test suite have been modified for Version 0.14. They will
+not work with previous versions. 05 Feb 1999.
 
 =cut

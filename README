@@ -1,5 +1,5 @@
 Win32::SerialPort and Win32API::CommPort
-VERSION=0.13, 28 November 1998
+VERSION=0.14, 07 February 1999
 
 Hello Beta testers:
 
@@ -10,26 +10,36 @@ selected over performance. Since everything is (sometimes convoluted but
 still pure) perl, you can fix flaws and change limits if required. But
 please file a bug report if you do.
 
-This is the third public beta. Most features are now implemented. I
-suspect there are still bugs - but I only know of one: "is_parity_enable"
+This is the fourth public beta. Almost all features are now implemented.
+I suspect there are still bugs - but I only know of one: "is_parity_enable"
 sometimes fails on NT (test4.t #81). I have not been able to duplicate this
 bug on my system. If you do get this test to fail, please let me know if
 you can isolate it to some line in the module source code. If you see any
 place where the code does not match the documentation, consider it a bug
 and please report it.
 
+This may be the final beta release. Almost all the changes are due to
+new functionality. Except for those items highlighted as "experimental"
+in the documentation (tied FileHandles, "lookfor" details, and stty
+emulation), the modules have been very stable since Nov 8, 1998 (0.12).
+
 COMPATIBILITY NOTES:
 
-1. This distribution improves "Install.PL" which now puts both the
-   modules and html documents into the appropriate locations in the
-   perl directory structure for perl versions 5.004 and above. Existing
-   scripts which relied on a standalone directory instead of the
-   documented Namespaces will need to be changed. 
+1. Users of ActiveState Build 3xx must use "Inst_3xx.PL" instead of
+   "Install.PL". Version 0.14 improves the automatic test suite support
+   in "Makefile.PL" (so it resembles Test::Harness without the summary
+   report). Results will be written to "test.txt".
 
-2. Users of ActiveState Build 3xx can not use "Install.PL". But Version
-   0.13 adds automatic test suite support to "Makefile.PL" (without the
-   summary report from Test::Harness, however, that you get from 5.004+).
-   Results will be written to "test.txt".
+2. The Tied FileHandle support works fully on 5.005, mostly on 5.004,
+   and essentially NOT on 5.003. This is due to the level of support
+   in the underlying Perl - not to the module implementation.
+
+3. The internals of "lookfor" have been extensively changed. Most of
+   the simple demos did not break - but users should verify that
+   existing applications which use this feature act the same. If any
+   user took advantage of the (previously undocumented) support for
+   regular expressions, they will have to revise their code to the
+   new (less ambiguous) syntax borrowed from Expect.pm.
 
 Please tell me what doesn't work, what you dislike (or like), and what
 should be added (or deleted). One very visible change from the alpha is
@@ -39,8 +49,7 @@ the division into two modules:
    CommPort.
 
 2. Win32API::CommPort is the raw API calls and other internal details
-   that most users won't need to know much about. Some exported names
-   have changed in beta 2 - but this change should not impact any users.
+   that most users won't need to know much about.
 
 These modules use Aldo Calpini's Win32::API module extensively. It is
 available at:
@@ -50,18 +59,19 @@ available at:
 for AS build 3xx and GS 5.004_02. For AS build 5xx, it is available as
 the package Win32-API using PPM on the ActiveState repository.
 Get it, install it, and test it BEFORE trying Win32API::SerialPort. The
-"-w" complaints (xxx used only once) under AS 3xx are normal.
+"-w" complaints (xxx used only once) under AS 3xx are normal. CommPort
+now fixes them - but other modules probably do not.
 
 See the NOTES and KNOWN LIMITATIONS in the SerialPort documentation. The
 ".pod" is embedded in the ".pm". The comments on "-w" and "use strict"
 are especially relevant when you start calling this module from your own
-code. This module has been tested on Win95 with AS Builds 315 and 500 and
+code. This module has been tested on Win95 with AS Builds 315, 500, 509 and
 the GS binary 5.004_02. Thanks to Ken White for testing on NT. Also thanks
 to the others who have contributed comments and suggestions.
 
 FILES:
     Changes		- for history lovers
-    Makefile.PL		- incomplete, but still the "starting point"
+    Makefile.PL		- the "starting point" for traditional reasons
     MANIFEST		- file list
     README.txt		- this file (CRLF)
     README    		- same file with CPAN-friendly name (LF only)
@@ -70,6 +80,7 @@ FILES:
     demo3.plx		- looks like a setup menu - but only looks :-(
     demo4.plx		- simplest setup: "new", "required param", "restart"
     demo5.plx		- "waitfor" and "nextline" using lookfor
+    demo6.plx		- basic tied FileHandle operations
     Install.PL		- install using MakeMaker tools (5.004 and above)
     Inst_3xx.PL		- install for perl 5.003
     options.plx		- post-install test that prints available options
@@ -93,6 +104,7 @@ FILES:
     t/test3.t		- Inheritance and export version of test1.t
     t/test4.t		- Inheritance version of test2.t and "restart"
     t/test5.t		- tests to optional exports from CommPort
+    t/test6.t		- tied FileHandle tests 5.004+
 
 This is a preliminary production release. While I will try to
 maintain backwards compatibility from this point forward, I can't
@@ -145,7 +157,7 @@ subtle functional changes between test2.t and test4.t. But test4.t also
 calls CommPort methods directly rather than through SerialPort and adds
 tests for lookfor and stty_xxx methods.
 
-You can read (most of the important) settings with demo3.plx. If you
+You can read (many of the important) settings with demo3.plx. If you
 give it a (valid) configuration file on the command line, it will open
 the port with those parameters (and "initialized" set - so you can test
 simple changes: see the parity example at the end of demo3.plx).
@@ -160,17 +172,21 @@ Demo4.plx is a "minimum" script showing just the basics needed to get
 started.
 
 Demo5.plx demonstrates various uses of the lookfor routine including
-setups for "waitfor" and a primative "readline". Try them out. The
+setups for "waitfor" and a primitive "readline". Try them out. The
 default "stty" settings work with a VT-100 style terminal. You may
 have to set the options by hand. Use any editor. Let me know if the
 descriptions in the documentation are useable. And if any more options
 are necessary.
 
+Demo6.plx demonstrates tied FileHandles. Perl 5.005 is recommended.
+It "requires" 5.004. It implements timeouts on all user inputs - so
+you can run it "hands-off" to see what happens.
+
 Please tell me what does and what doesn't work. Which systems "croak".
 You can share this with anyone. But it's still beta code. Don't trust it
 for anything important without complete testing. The feedback I have
 received, and my own testing, indicate the code is already pretty robust.
-And watch for frequent updates at:
+And watch for updates at:
 
 %%%% http://members.aol.com/Bbirthisel/alpha.html
 
@@ -181,6 +197,6 @@ Thanks,
 
 -bill
 
-Copyright (C) 1998, Bill Birthisel. All rights reserved. This module is
+Copyright (C) 1999, Bill Birthisel. All rights reserved. This module is
 free software; you can redistribute it and/or modify it under the same
 terms as Perl itself.
