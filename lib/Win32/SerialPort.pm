@@ -1,13 +1,13 @@
 package Win32::SerialPort;
 
 use Win32;
-use Win32API::CommPort qw( :STAT :PARAM 0.16 );
+use Win32API::CommPort qw( :STAT :PARAM 0.17 );
 
 use Carp;
 use strict;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION = '0.16';
+$VERSION = '0.17';
 
 require Exporter;
 ## require AutoLoader;
@@ -172,6 +172,8 @@ sub new {
     $self->{"_DEBUG"}    	= 0;
     $self->{U_MSG}     		= 0;
     $self->{E_MSG}     		= 0;
+    $self->{OFS}		= "";
+    $self->{ORS}		= "";
     $self->{"_T_INPUT"}		= "";
     $self->{"_LOOK"}		= "";
     $self->{"_LASTLOOK"}	= "";
@@ -758,7 +760,7 @@ sub WRITE {
     my $offset = 0;
     if (@_) { $offset = shift; }
     my $out2 = substr($buf, $offset, $len);
-    return unless ($self->PRINT($out2));
+    return unless ($self->post_print($out2));
     return length($out2);
 }
 
@@ -770,7 +772,33 @@ sub WRITE {
 sub PRINT {
     my $self = shift;
     return unless (@_);
-    my $output = join("",@_);
+    my $ofs = $, ? $, : "";
+    if ($self->{OFS}) { $ofs = $self->{OFS}; }
+    my $ors = $\ ? $\ : "";
+    if ($self->{ORS}) { $ors = $self->{ORS}; }
+    my $output = join($ofs,@_);
+    $output .= $ors;
+    return $self->post_print($output);
+}
+
+sub output_field_separator {
+    my $self = shift;
+    my $prev = $self->{OFS};
+    if (@_) { $self->{OFS} = shift; }
+    return $prev;
+}
+
+sub output_record_separator {
+    my $self = shift;
+    my $prev = $self->{ORS};
+    if (@_) { $self->{ORS} = shift; }
+    return $prev;
+}
+
+sub post_print {
+    my $self = shift;
+    return unless (@_);
+    my $output = shift;
     if ($self->stty_opost) {
 	if ($self->stty_ocrnl) { $output =~ s/\r/\n/osg; }
 	if ($self->stty_onlcr) { $output =~ s/\n/\r\n/osg; }
@@ -782,13 +810,13 @@ sub PRINT {
         my $out2 = substr($output, $done);
         $written = $self->write($out2);
 	if (! defined $written) {
-	    $ = 1121; # ERROR_COUNTER_TIMEOUT
+	    $^E = 1121; # ERROR_COUNTER_TIMEOUT
             return;
         }
 	return 0 unless ($written);
 	$done += $written;
     }
-    $ = 0;
+    $^E = 0;
     1;
 }
  
@@ -828,20 +856,25 @@ sub READ {
 	if ($count_in) {
             $in2 .= $string_in;
 	    $done += $count_in;
-	    $ = 0;
+	    $^E = 0;
 	}
 	elsif ($done) {
-	    $ = 0;
+	    $^E = 0;
 	    last;
 	}
         else {
-	    $ = 1121; # ERROR_COUNTER_TIMEOUT
-            return;
+	    $^E = 1121; # ERROR_COUNTER_TIMEOUT
+	    last;
         }
     }
-    $$buf = substr($$buf, 0, $offset);
-    substr($$buf, $offset, $done) = $in2;
-    return $done;
+    my $tail = substr($$buf, $offset + $done);
+    my $head = substr($$buf, 0, $offset);
+    if ($self->{icrnl}) { $in2 =~ tr/\r/\n/; }
+    if ($self->{inlcr}) { $in2 =~ tr/\n/\r/; }
+    if ($self->{igncr}) { $in2 =~ s/\r//gos; }
+    $$buf = $head.$in2.$tail;
+    return $done if ($done);
+    return;
 }
 
 # READLINE this
@@ -860,18 +893,18 @@ sub READLINE {
         for (;;) {
             $was = $self->reset_error;
 	    if ($was) {
-	        $ = 1117; # ERROR_IO_DEVICE
+	        $^E = 1117; # ERROR_IO_DEVICE
 		return @lines if (@lines);
                 return;
 	    }
             if (! defined ($gotit = $self->streamline($self->{"_SIZE"}))) {
-	        $ = 1121; # ERROR_COUNTER_TIMEOUT
+	        $^E = 1121; # ERROR_COUNTER_TIMEOUT
 		return @lines if (@lines);
                 return;
             }
 	    $match = $self->matchclear;
             if ( ($gotit ne "") || ($match ne "") ) {
-	        $ = 0;
+	        $^E = 0;
 		$gotit .= $match;
                 push (@lines, $gotit);
 		return @lines if ($gotit =~ /$self->{"_CLASTLINE"}/s);
@@ -882,16 +915,16 @@ sub READLINE {
         for (;;) {
             $was = $self->reset_error;
 	    if ($was) {
-	        $ = 1117; # ERROR_IO_DEVICE
+	        $^E = 1117; # ERROR_IO_DEVICE
                 return;
 	    }
             if (! defined ($gotit = $self->lookfor($self->{"_SIZE"}))) {
-	        $ = 1121; # ERROR_COUNTER_TIMEOUT
+	        $^E = 1121; # ERROR_COUNTER_TIMEOUT
                 return;
             }
 	    $match = $self->matchclear;
             if ( ($gotit ne "") || ($match ne "") ) {
-	        $ = 0;
+	        $^E = 0;
                 return $gotit.$match;  # traditional <HANDLE> behavior
             }
         }
@@ -905,11 +938,11 @@ sub GETC {
     my $self = shift;
     my ($count, $in) = $self->read(1);
     if ($count == 1) {
-	$ = 0;
+	$^E = 0;
         return $in;
     }
     else {
-	$ = 1121; # ERROR_COUNTER_TIMEOUT
+	$^E = 1121; # ERROR_COUNTER_TIMEOUT
         return;
     }
 }
@@ -1825,9 +1858,8 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 
 =head1 SYNOPSIS
 
-  use Win32;
   require 5.003;
-  use Win32::SerialPort qw( :STAT 0.16 );
+  use Win32::SerialPort qw( :STAT 0.17 );
 
 =head2 Constructors
 
@@ -1951,6 +1983,9 @@ action desired is a message, B<status> provides I<Built-In> BitMask processing:
   $PortObj->linesize(10);		# with READLINE
   $PortObj->lastline("_GOT_ME_");	# with READLINE, list only
 
+  $old_ors = $PortObj->output_record_separator("RECORD");	# with PRINT
+  $old_ofs = $PortObj->output_field_separator("COMMA");		# with PRINT
+
 =head2 Destructors
 
   $PortObj->close || warn "close failed";
@@ -2066,7 +2101,7 @@ These return scalar context only.
   pulse_dtr_off       ignore_null            ignore_no_dsr
   subst_pe_char       abort_on_error         output_xoff
   output_dsr          output_cts             tx_on_xoff
-  input_xoff
+  input_xoff          get_tick_count
 
 
 =head1 DESCRIPTION
@@ -2199,13 +2234,25 @@ support for tied FileHandles (see I<perltie>). Win32::SerialPort
 implements the complete set of methods: TIEHANDLE, PRINT, PRINTF,
 WRITE, READ, GETC, READLINE, CLOSE, and DESTROY. Tied FileHandle
 support was new with Version 0.14.
-The implementation attempts to mimic STDIN/STDOUT behaviour as closely
-as possible: calls block until done, data strings that exceed internal
-buffers are divided transparently into multiple calls, and B<stty_onlcr>
-is applied to output data (WRITE, PRINT, PRINTF) when B<stty_opost>.
 
   $PortObj2 = tie (*FH, 'Win32::SerialPort', $Configuration_File_Name)
        || die;
+
+The implementation attempts to mimic STDIN/STDOUT behaviour as closely
+as possible: calls block until done, data strings that exceed internal
+buffers are divided transparently into multiple calls, and B<stty_onlcr>
+and B<stty_ocrnl> are applied to output data (WRITE, PRINT, PRINTF) when
+B<stty_opost> is true. In Version 0.17, the output separators C<$,> and
+C<$\> are also applied to PRINT if set. Since PRINTF is treated internally
+as a single record PRINT, C<$\> will be applied. Output separators are not
+applied to WRITE (called as C<syswrite FH, $scalar, $length, [$offset]>).
+
+The B<output_record_separator> and B<output_field_separator> methods can set
+I<Port-FileHandle-Specific> versions of C<$,> and C<$\> if desired.
+The input_record_separator C<$/> is not explicitly supported - but an
+identical function can be obtained with a suitable B<are_match> setting.
+Record separators are experimental in Version 0.17. They are not saved
+in the configuration_file.
 
 The tied FileHandle methods may be combined with the Win32::SerialPort
 methods for B<read, input>, and B<write> as well as other methods. The
@@ -2213,7 +2260,10 @@ typical restrictions against mixing B<print> with B<syswrite> do not
 apply. Since both B<(tied) read> and B<sysread> call the same C<$ob-E<gt>READ>
 method, and since a separate C<$ob-E<gt>read> method has existed for some
 time in Win32::SerialPort, you should always use B<sysread> with the
-tied interface.
+tied interface. Beginning in Version 0.17, B<sysread> checks the input
+against B<stty_icrnl>, B<stty_inlcr>, and B<stty_igncr>. With B<stty_igncr>
+active, the B<sysread> returns the count of all characters received including
+and C<\r> characters subsequently deleted.
 
 Because all the tied methods block, they should ALWAYS be used with
 timeout settings and are not suitable for background operations and
@@ -2712,11 +2762,11 @@ I<"COM2.cfg"> would not be usable for B<$Configuration_File_Name>.
 
 Thanks to Ken White for testing on NT.
 
-There exists a linux clone of this module implemented using I<POSIX.pm>.
-It will probably run on other POSIX systems as well. It does not currently
-support the complete set of methods - although portability of user
-programs is excellent for the calls it does support. It will soon be
-available from CPAN as I<Device::SerialPort>.
+There is a linux clone of this module implemented using I<POSIX.pm>.
+It also runs on AIX and Solaris, and will probably run on other POSIX
+systems as well. It does not currently support the complete set of methods -
+although portability of user programs is excellent for the calls it does
+support. It is available from CPAN as I<Device::SerialPort>.
 
 =head1 KNOWN LIMITATIONS
 
@@ -2726,15 +2776,12 @@ you do. This module has been tested with each of the binary perl versions
 for which Win32::API is supported: AS builds 315, 316, 500-509 and GS
 5.004_02. It has only been tested on Intel hardware.
 
-The B<lookfor, stty_xxx, and Tied FileHandle> mechanisms should be considered
-experimental. They have only been tested on a small subset of possible
+Although the B<lookfor, stty_xxx, and Tied FileHandle> mechanisms are
+considered stable, they have only been tested on a small subset of possible
 applications. While "\r" characters may be included in the clear string
 using B<is_stty_clear> internally, "\n" characters may NOT be included
 in multi-character strings if you plan to save the strings in a configuration
 file (which uses "\n" as an internal terminator).
-
-Version 0.13 made several changes to the configuration file. You should
-rewrite any earlier files.
 
 =over 4
 
@@ -2831,6 +2878,6 @@ ActiveState 3xx builds. Users of those builds will need to install
 differently (see README). Programs in the test suite are modified for
 the current version. Additions to the configurtion files generated by
 B<save> prevent those created by Version 0.15 from being used by earlier
-Versions. 18 July 1999.
+Versions. 13 August 1999.
 
 =cut

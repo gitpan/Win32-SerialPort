@@ -66,9 +66,8 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 <H1><A NAME="SYNOPSIS">SYNOPSIS
 
 </A></H1>
-<PRE>  use Win32;
-  require 5.003;
-  use Win32::SerialPort qw( :STAT 0.16 );
+<PRE>  require 5.003;
+  use Win32::SerialPort qw( :STAT 0.17 );
 </PRE>
 
 <P>
@@ -290,6 +289,12 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 
 <P>
 
+<PRE>  $old_ors = $PortObj-&gt;output_record_separator(&quot;RECORD&quot;);       # with PRINT
+  $old_ofs = $PortObj-&gt;output_field_separator(&quot;COMMA&quot;);         # with PRINT
+</PRE>
+
+<P>
+
 <P>
 <HR>
 <H2><A NAME="Destructors">Destructors
@@ -467,7 +472,7 @@ These return scalar context only.
   pulse_dtr_off       ignore_null            ignore_no_dsr
   subst_pe_char       abort_on_error         output_xoff
   output_dsr          output_cts             tx_on_xoff
-  input_xoff
+  input_xoff          get_tick_count
 </PRE>
 
 <P>
@@ -665,11 +670,7 @@ object is ready for access.
 
 The third constructor, <STRONG>tie</STRONG>, combines the <STRONG>start</STRONG> with Perl's support for tied FileHandles (see <EM>perltie</EM>). Win32::SerialPort implements the complete set of methods: TIEHANDLE,
 PRINT, PRINTF, WRITE, READ, GETC, READLINE, CLOSE, and DESTROY. Tied
-FileHandle support was new with Version 0.14. The implementation attempts
-to mimic STDIN/STDOUT behaviour as closely as possible: calls block until
-done, data strings that exceed internal buffers are divided transparently
-into multiple calls, and <STRONG>stty_onlcr</STRONG>
-is applied to output data (WRITE, PRINT, PRINTF) when <STRONG>stty_opost</STRONG>.
+FileHandle support was new with Version 0.14.
 
 
 <P>
@@ -680,10 +681,30 @@ is applied to output data (WRITE, PRINT, PRINTF) when <STRONG>stty_opost</STRONG
 
 <P>
 
+The implementation attempts to mimic STDIN/STDOUT behaviour as closely as
+possible: calls block until done, data strings that exceed internal buffers
+are divided transparently into multiple calls, and <STRONG>stty_onlcr</STRONG>
+and <STRONG>stty_ocrnl</STRONG> are applied to output data (WRITE, PRINT, PRINTF) when
+<STRONG>stty_opost</STRONG> is true. In Version 0.17, the output separators <CODE>$,</CODE> and
+<CODE>$\</CODE> are also applied to PRINT if set. Since PRINTF is treated internally as a
+single record PRINT, <CODE>$\</CODE> will be applied. Output separators are not applied to WRITE (called as <CODE>syswrite FH, $scalar, $length, [$offset]</CODE>).
+
+
+<P>
+
+The <STRONG>output_record_separator</STRONG> and <STRONG>output_field_separator</STRONG> methods can set
+<EM>Port-FileHandle-Specific</EM> versions of <CODE>$,</CODE> and <CODE>$\</CODE> if desired. The input_record_separator <CODE>$/</CODE> is not explicitly supported - but an identical function can be obtained
+with a suitable <STRONG>are_match</STRONG> setting. Record separators are experimental in Version 0.17. They are not
+saved in the configuration_file.
+
+
+<P>
+
 The tied FileHandle methods may be combined with the Win32::SerialPort
 methods for <STRONG>read, input</STRONG>, and <STRONG>write</STRONG> as well as other methods. The typical restrictions against mixing <STRONG>print</STRONG> with <STRONG>syswrite</STRONG> do not apply. Since both <STRONG>(tied) read</STRONG> and <STRONG>sysread</STRONG> call the same <CODE>$ob-&gt;READ</CODE>
 method, and since a separate <CODE>$ob-&gt;read</CODE> method has existed for some time in Win32::SerialPort, you should always
-use <STRONG>sysread</STRONG> with the tied interface.
+use <STRONG>sysread</STRONG> with the tied interface. Beginning in Version 0.17, <STRONG>sysread</STRONG> checks the input against <STRONG>stty_icrnl</STRONG>, <STRONG>stty_inlcr</STRONG>, and <STRONG>stty_igncr</STRONG>. With <STRONG>stty_igncr</STRONG>
+active, the <STRONG>sysread</STRONG> returns the count of all characters received including and <CODE>\r</CODE> characters subsequently deleted.
 
 
 <P>
@@ -1391,10 +1412,10 @@ Thanks to Ken White for testing on NT.
 
 <P>
 
-There exists a linux clone of this module implemented using <EM>POSIX.pm</EM>. It will probably run on other POSIX systems as well. It does not
-currently support the complete set of methods - although portability of
-user programs is excellent for the calls it does support. It will soon be
-available from CPAN as <EM>Device::SerialPort</EM>.
+There is a linux clone of this module implemented using <EM>POSIX.pm</EM>. It also runs on AIX and Solaris, and will probably run on other POSIX
+systems as well. It does not currently support the complete set of methods
+- although portability of user programs is excellent for the calls it does
+support. It is available from CPAN as <EM>Device::SerialPort</EM>.
 
 
 <P>
@@ -1413,17 +1434,11 @@ It has only been tested on Intel hardware.
 
 <P>
 
-The <STRONG>lookfor, stty_xxx, and Tied FileHandle</STRONG> mechanisms should be considered experimental. They have only been tested on
-a small subset of possible applications. While ``\r'' characters may be
-included in the clear string using <STRONG>is_stty_clear</STRONG> internally, ``\n'' characters may NOT be included in multi-character
+Although the <STRONG>lookfor, stty_xxx, and Tied FileHandle</STRONG> mechanisms are considered stable, they have only been tested on a small
+subset of possible applications. While ``\r'' characters may be included in
+the clear string using <STRONG>is_stty_clear</STRONG> internally, ``\n'' characters may NOT be included in multi-character
 strings if you plan to save the strings in a configuration file (which uses
 ``\n'' as an internal terminator).
-
-
-<P>
-
-Version 0.13 made several changes to the configuration file. You should
-rewrite any earlier files.
 
 
 <P>
@@ -1599,7 +1614,7 @@ need to install differently (see README). Programs in the test suite are
 modified for the current version. Additions to the configurtion files
 generated by
 <STRONG>save</STRONG> prevent those created by Version 0.15 from being used by earlier Versions.
-18 July 1999.
+13 August 1999.
 
 
 <P>

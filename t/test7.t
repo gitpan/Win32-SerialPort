@@ -123,10 +123,10 @@ is_ok(0 == $ob->write_char_time(0));		# 19
 is_ok(2000 == $ob->write_const_time(2000));	# 20
 
     # tie to PRINT method
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=print PORT $line;
-is_zero($);					# 21
-$tock=Win32::GetTickCount();
+is_zero($^E);					# 21
+$tock=$ob->get_tick_count;
 
 if ($naptime) {
     print "++++ page break\n";
@@ -139,20 +139,20 @@ is_bad (($err < 160) or ($err > 210));		# 23
 print "<185> elapsed time=$err\n";
 
     # tie to READLINE method
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $fail = <PORT>;
-is_ok($ == 1121);				# 24
-$tock=Win32::GetTickCount();
+is_ok($^E == 1121);				# 24
+$tock=$ob->get_tick_count;
 
 is_bad(defined $fail);				# 25
 $err=$tock - $tick;
 is_bad (($err < 800) or ($err > 1200));		# 26
 print "<1000> elapsed time=$err\n";
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 @opts = <PORT>;
-is_ok($ == 1121);				# 27
-$tock=Win32::GetTickCount();
+is_ok($^E == 1121);				# 27
+$tock=$ob->get_tick_count;
 
 is_bad(@opts);					# 28
 $err=$tock - $tick;
@@ -160,10 +160,10 @@ is_bad (($err < 800) or ($err > 1200));		# 29
 print "<1000> elapsed time=$err\n";
 
     # tie to PRINTF method
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=printf PORT "123456789_%s_987654321", $line;
-is_zero($);					# 30
-$tock=Win32::GetTickCount();
+is_zero($^E);					# 30
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 31
 $err=$tock - $tick;
@@ -171,10 +171,10 @@ is_bad (($err < 180) or ($err > 235));		# 32
 print "<205> elapsed time=$err\n";
 
     # tie to GETC method
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $fail = getc PORT;
-is_ok($);					# 33
-$tock=Win32::GetTickCount();
+is_ok($^E);					# 33
+$tock=$ob->get_tick_count;
 
 is_bad(defined $fail);				# 34
 $err=$tock - $tick;
@@ -182,7 +182,7 @@ is_bad (($err < 800) or ($err > 1200));		# 35
 print "<1000> elapsed time=$err\n";
 
     # tie to WRITE method
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 if ( $] < 5.005 ) {
     $pass=print PORT $line;
     is_ok($pass == 1);				# 36
@@ -191,8 +191,8 @@ else {
     $pass=syswrite PORT, $line, length($line), 0;
     is_ok($pass == 180);			# 36
 }
-is_zero($);					# 37
-$tock=Win32::GetTickCount();
+is_zero($^E);					# 37
+$tock=$ob->get_tick_count;
 
 $err=$tock - $tick;
 is_bad (($err < 160) or ($err > 210));		# 38
@@ -200,10 +200,10 @@ print "<185> elapsed time=$err\n";
 
     # tie to READ method
 my $in = "1234567890";
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $fail = sysread (PORT, $in, 5, 0);
-is_ok($);					# 39
-$tock=Win32::GetTickCount();
+is_ok($^E);					# 39
+$tock=$ob->get_tick_count;
 
 is_bad(defined $fail);				# 40
 $err=$tock - $tick;
@@ -212,10 +212,10 @@ print "<1000> elapsed time=$err\n";
 
     # READLINE hardware errors
 ($blk, $pass, $fail, $err)=$ob->is_status(0x8);	# test only
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $fail = <PORT>;
-$tock=Win32::GetTickCount();
-is_ok($ == 1117);				# 42
+$tock=$ob->get_tick_count;
+is_ok($^E == 1117);				# 42
 is_bad(defined $fail);				# 43
 $err=$tock - $tick;
 is_bad ($err > 100);				# 44
@@ -228,10 +228,10 @@ if ($naptime) {
 }
 
 ($blk, $pass, $fail, $err)=$ob->is_status(0x8);	# test only
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 @opts = <PORT>;
-$tock=Win32::GetTickCount();
-is_ok($ == 1117);				# 46
+$tock=$ob->get_tick_count;
+is_ok($^E == 1117);				# 46
 is_bad(@opts);					# 47
 $err=$tock - $tick;
 is_bad ($err > 100);				# 48
@@ -243,20 +243,20 @@ is_ok ($ob->linesize == 1);			# 50
 is_zero ($ob->linesize(0));			# 51
 is_ok ($ob->lookclear("First\nSecond\n\nFourth\nLast Line\nEND") == 1);	# 52
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass = <PORT>;
-$tock=Win32::GetTickCount();
-is_zero($);					# 53
+$tock=$ob->get_tick_count;
+is_zero($^E);					# 53
 is_ok($pass eq "First\n");			# 54
 $err=$tock - $tick;
 is_bad ($err > 100);				# 55
 print "<0> elapsed time=$err\n";
 
 is_ok ($ob->lastline("Last L..e") eq "Last L..e");	# 56
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 @opts = <PORT>;
-$tock=Win32::GetTickCount();
-is_zero($);					# 57
+$tock=$ob->get_tick_count;
+is_zero($^E);					# 57
 is_ok($#opts == 3);				# 58
 is_ok($opts[0] eq "Second\n");			# 59
 is_ok($opts[1] eq "\n");			# 60
@@ -277,10 +277,10 @@ is_ok ($ob->matchclear eq "");			# 67
 
     # preload and do three lines non-blocking
 is_ok ($ob->lookclear("One\n\nThree\nFour\nLast Line\nplus") == 1);	# 68
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass = <PORT>;
-$tock=Win32::GetTickCount();
-is_zero($);					# 69
+$tock=$ob->get_tick_count;
+is_zero($^E);					# 69
 is_ok($pass eq "One\n");			# 70
 $err=$tock - $tick;
 is_bad ($err > 100);				# 71
@@ -302,10 +302,10 @@ is_ok ($patt eq "\n");				# 79
 
     # switch back to blocking reads
 is_ok ($ob->linesize(1) == 1);			# 80
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass = <PORT>;
-$tock=Win32::GetTickCount();
-is_ok($ == 1121);				# 81
+$tock=$ob->get_tick_count;
+is_ok($^E == 1121);				# 81
 $err=$tock - $tick;
 is_bad (($err < 800) or ($err > 1200));		# 82
 print "<1000> elapsed time=$err\n";

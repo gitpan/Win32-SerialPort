@@ -1,7 +1,7 @@
 #!perl -w
 
-## use lib './lib';
-use Win32::SerialPort 0.15;
+use lib './lib';
+use Win32::SerialPort 0.17;
 require 5.004;
 
 use strict;
@@ -38,7 +38,7 @@ $tie_ob->handshake("xoff");
 $tie_ob->stty_onlcr(1);		# depends on terminal
 $tie_ob->stty_opost(1);		# depends on terminal
 $tie_ob->stty_icrnl(1);		# depends on terminal
-$tie_ob->stty_echo(1);		# depends on terminal
+$tie_ob->stty_echo(0);		# depends on terminal
 
     # Print Prompts to Port and Main Screen
 print $head;
@@ -50,8 +50,8 @@ print PORT "\r\nEnter one character (10 seconds): "
 
     # tie to GETC method
 my $char = getc PORT;
-if ($) {
-    printf "GETC timed out:\n%s\n\n", $;
+if ($^E) {
+    printf "GETC timed out:\n%s\n\n", $^E;
     print PORT "...GETC timed_out\r\n";
 }
 else {
@@ -70,6 +70,7 @@ else {
 
 
     # tie to READLINE method
+$tie_ob->stty_echo(1);		# depends on terminal
 print PORT "enter line: ";
 my $line = <PORT>;
 if (defined $line) {
@@ -84,17 +85,42 @@ else {
 }
 
     # tie to READ method
-my $in = "1234567890";
+my $in = "FIRST:12345, SECOND:67890, END";
+$tie_ob->stty_echo(0);		# depends on terminal
 print PORT "\r\nenter 5 char (no echo): ";
-unless (defined sysread (PORT, $in, 5, 0)) {
-    print "READ timed out:\n$\n\n";
+unless (defined sysread (PORT, $in, 5, 6)) {
+    print "READ timed out:\n$^E\n\n";
     print PORT "...READ timed out\r\n";
-    $in = "";
+}
+
+$tie_ob->stty_echo(1);		# depends on terminal
+print PORT "\r\nenter 5 more char (with echo): ";
+unless (defined sysread (PORT, $in, 5, 20)) {
+    print "READ timed out:\n";
+    print PORT "...READ timed out\r\n";
 }
 
     # tie to PRINTF method
 printf PORT "\r\nreceived: %s\r\n", $in
     or print "PRINTF timed out\n\n";
+
+    # PORT-specific versions of the $, and $\ variables
+my $n1 = ".number1_";
+my $n2 = ".number2_";
+my $n3 = ".number3_";
+
+print PORT $n1, $n2, $n3;
+print PORT "\r\n";
+
+$tie_ob->output_field_separator("COMMA");
+print PORT $n1, $n2, $n3;
+print PORT "\r\n";
+
+$tie_ob->output_record_separator("RECORD");
+print PORT $n1, $n2, $n3;
+$tie_ob->output_record_separator("");
+print PORT "\r\n";
+    # the $, and $\ variables will also work
 
 print PORT $e;
 

@@ -7,9 +7,9 @@
 ####    );
 
 print "\n\n            Win32::SerialPort and Win32API::CommPort\n";
-print "                           VERSION 0.16\n";
+print "                           VERSION 0.17\n";
 print "                  No 'Makefile' will be created\n";
-print "         so skip customary 'make', 'dmake', 'nmake' step\n\n";
+print "         so skip customary 'make', 'dmake', 'nmake' steps\n\n";
 print "              Test with nothing connected to COM1\n";
 print "          or for different port: perl makefile.PL PORT\n\n";
 print "             The test suite will run automatically\n";
@@ -66,5 +66,5 @@ else {
 }
 print "To run individual tests, type:\n";
 print "    C:\\> perl t/test1.t Page_Pause_Time (0..5) [ COMx ]\n";
-print "Continue with 'perl t/test2.t' through 'perl t/test6.t'\n";
+print "Continue with 'perl t/test2.t' through 'perl t/test7.t'\n";
 print "See README and other documentation for additional information.\n\n";

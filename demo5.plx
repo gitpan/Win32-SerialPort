@@ -27,7 +27,7 @@ sub nextline {
     $delay = shift if (@_);
     if (@_)	{ $prompt = shift; }
     else	{ $prompt = ""; }
-    my $timeout=Win32::GetTickCount() + (1000 * $delay);
+    my $timeout=$ob->get_tick_count + (1000 * $delay);
     my $gotit = "";
     my $fmatch = "";
     my @junk;
@@ -55,7 +55,7 @@ sub nextline {
 	else {
 	    sleep 1;	# no easy GSAR equivalent
 	}
-	return if (Win32::GetTickCount() > $timeout);
+	return if ($ob->get_tick_count > $timeout);
     }
 }
 

@@ -159,9 +159,9 @@ is_zero ($err);					# 30
 
 # 31 - 33: "Instant" return for read_interval=0xffffffff
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 ($in, $in2) = $ob->read(10);
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_zero ($in);					# 31
 is_bad ($in2);					# 32
@@ -178,9 +178,9 @@ is_zero ($ob->read_interval(0));		# 35
 
 # 36 - 38
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 ($in, $in2) = $ob->read(10);
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_zero ($in);					# 36
 is_bad ($in2);					# 37
@@ -193,9 +193,9 @@ print "<2000> elapsed time=$out\n";
 
 is_ok (100 == $ob->read_char_time(100));	# 39
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 ($in, $in2) = $ob->read(20);
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_zero ($in);					# 40
 is_bad ($in2);					# 41
@@ -208,9 +208,9 @@ print "<4000> elapsed time=$out\n";
 
 is_zero ($ob->read_const_time(0));		# 43
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 ($in, $in2) = $ob->read(30);
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_zero ($in);					# 44
 is_bad ($in2);					# 45
@@ -235,9 +235,9 @@ is_ok ("rts" eq $ob->handshake("rts"));		# 51 ; so it blocks
 
 $e="12345678901234567890";
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 is_zero ($ob->write($e));			# 52
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 $out=$tock - $tick;
 is_bad (($out < 1800) or ($out > 2400));	# 53
@@ -247,9 +247,9 @@ print "<2000> elapsed time=$out\n";
 
 is_ok (75 ==$ob->write_char_time(75));		# 54
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 is_zero ($ob->write($e));			# 55
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 $out=$tock - $tick;
 is_bad (($out < 3300) or ($out > 3900));	# 56
@@ -262,9 +262,9 @@ is_ok (2500 == $ob->read_const_time(2500));	# 57
 is_zero ($ob->read_interval(0));		# 58
 is_ok (scalar $ob->purge_all);			# 59
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $in = $ob->read_bg(10);
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_zero ($in);					# 60
 $out=$tock - $tick;
@@ -272,7 +272,7 @@ is_ok ($out < 100);				# 61
 print "<0> elapsed time=$out\n";
 
 ($pass, $in, $in2) = $ob->read_done(0);
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_zero ($pass);				# 62
 is_zero ($in);					# 63
@@ -310,7 +310,7 @@ sleep 1;
 is_ok ($pass);					# 78
 is_zero ($in);					# 79
 is_ok ($in2 eq "");				# 80
-$tock=Win32::GetTickCount();			# expect about 3 seconds
+$tock=$ob->get_tick_count;			# expect about 3 seconds
 $out=$tock - $tick;
 is_bad (($out < 2800) or ($out > 3400));	# 81
 print "<3000> elapsed time=$out\n";
@@ -329,12 +329,12 @@ sleep 1;
 ($pass, $out) = $ob->write_done(0);
 is_ok ($pass);					# 87
 is_zero ($out);					# 88
-$tock=Win32::GetTickCount();			# expect about 5 seconds
+$tock=$ob->get_tick_count;			# expect about 5 seconds
 $out=$tock - $tick;
 is_bad (($out < 4800) or ($out > 5400));	# 89
 print "<5000> elapsed time=$out\n";
 
-$tick=Win32::GetTickCount();			# new timebase
+$tick=$ob->get_tick_count;			# new timebase
 $in = $ob->read_bg(10);
 is_zero ($in);					# 90
 ($pass, $in, $in2) = $ob->read_done(0);
@@ -357,12 +357,12 @@ is_zero ($pass);				# 96
 is_ok ($pass);					# 97
 is_zero ($in);					# 98 
 is_ok ($in2 eq "");				# 99
-$tock=Win32::GetTickCount();			# expect 2.5 seconds
+$tock=$ob->get_tick_count;			# expect 2.5 seconds
 $out=$tock - $tick;
 is_bad (($out < 2300) or ($out > 2800));	# 100
 print "<2500> elapsed time=$out\n";
 
-$tick=Win32::GetTickCount();			# new timebase
+$tick=$ob->get_tick_count;			# new timebase
 $in = $ob->read_bg(10);
 is_zero ($in);					# 101
 ($pass, $in, $in2) = $ob->read_done(0);
@@ -384,7 +384,7 @@ else {
 }
 is_zero ($in);					# 109 
 is_ok ($in2 eq "");				# 110
-$tock=Win32::GetTickCount();			# expect 1 second
+$tock=$ob->get_tick_count;			# expect 1 second
 $out=$tock - $tick;
 is_bad (($out < 900) or ($out > 1200));		# 111
 print "<1000> elapsed time=$out\n";
@@ -405,12 +405,12 @@ if (Win32::IsWinNT()) {
 else {
     is_ok ($pass);				# 117 
 }
-$tock=Win32::GetTickCount();			# expect 2 seconds
+$tock=$ob->get_tick_count;			# expect 2 seconds
 $out=$tock - $tick;
 is_bad (($out < 1900) or ($out > 2200));	# 118
 print "<2000> elapsed time=$out\n";
 
-$tick=Win32::GetTickCount();			# new timebase
+$tick=$ob->get_tick_count;			# new timebase
 $in = $ob->read_bg(10);
 is_zero ($in);					# 119
 ($pass, $in, $in2) = $ob->read_done(0);
@@ -429,14 +429,14 @@ is_zero ($in);					# 125
 is_ok ($in2 eq "");				# 126
 ($pass, $out) = $ob->write_done(0);
 is_zero ($pass);				# 127
-$tock=Win32::GetTickCount();			# expect 2.5 seconds
+$tock=$ob->get_tick_count;			# expect 2.5 seconds
 $out=$tock - $tick;
 is_bad (($out < 2300) or ($out > 2800));	# 128
 print "<2500> elapsed time=$out\n";
 
 ($pass, $out) = $ob->write_done(1);
 is_ok ($pass);					# 129
-$tock=Win32::GetTickCount();			# expect 3.5 seconds
+$tock=$ob->get_tick_count;			# expect 3.5 seconds
 $out=$tock - $tick;
 is_bad (($out < 3300) or ($out > 3800));	# 130
 print "<3500> elapsed time=$out\n";

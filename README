@@ -1,13 +1,12 @@
 Win32::SerialPort and Win32API::CommPort
-VERSION=0.16, 18 July 1999
+VERSION=0.17, 13 August 1999
 
 Hello Serial Port users:
 
 If you are not running Windows, you want the Device::SerialPort module
 instead of this one. It has a compatible user interface and runs on
 Operating Systems that fully support POSIX.pm. Available from your
-favorite CPAN site shortly. Since someone asked, MS-DOS does NOT
-support POSIX.pm.
+favorite CPAN site. Since someone asked, MS-DOS does NOT support POSIX.pm.
 
 These modules are intended for Win32 ports of Perl without requiring
 a compiler or using XS. In every case, compatibility has been selected
@@ -17,7 +16,7 @@ report if you do. I have tested with the ActiveState (3xx and 5xx) and
 Core (GS 5.004_02) distributions. But these modules should work on any
 Win32 version that supports Aldo Calpini's Win32::API.
 
-This is the second production release. All planned features are now
+This is the third production release. All planned features are now
 implemented. A few are still experimental - see the documentation.
 I suspect there are still bugs - but I only know of one: "is_parity_enable"
 sometimes fails on NT (test4.t #86). I have not been able to duplicate this
@@ -76,6 +75,10 @@ COMPATIBILITY NOTES:
    improved based on testing. The functions have not changed - only
    the description of how they work (and the new recommendations).
 
+6. A "syswrite" from a tied FileHandle now checks stty_opost and
+   performs the output conversions. You can still use "write" to
+   generate "raw" output even with stty_opost==1.
+
 These modules use Aldo Calpini's Win32::API module extensively. It is
 available at:
 
@@ -106,7 +109,7 @@ FILES:
     demo3.plx		- looks like a setup menu - but only looks :-(
     demo4.plx		- simplest setup: "new", "required param", "restart"
     demo5.plx		- "waitfor" and "nextline" using lookfor
-    demo6.plx		- basic tied FileHandle operations
+    demo6.plx		- basic tied FileHandle operations, record separators
     demo7.plx		- a Perl/Tk based terminal, event loop and callbacks
     demo8.plx		- command line terminal emulator with Term::Readkey
     Install.PL		- install using MakeMaker tools (5.004 and above)

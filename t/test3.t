@@ -11,9 +11,9 @@ require 5.003;
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..218\n"; }
+BEGIN { $| = 1; print "1..244\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use AltPort qw( :STAT :PARAM 0.16 );		# check inheritance & export
+use AltPort qw( :STAT :PARAM 0.17 );		# check inheritance & export
 $loaded = 1;
 print "ok 1\n";
 
@@ -121,6 +121,10 @@ my $e;
 my $tick;
 my $tock;
 my %required_param;
+
+my $s="testing is a wonderful thing - this is a 60 byte long string";
+#      123456789012345678901234567890123456789012345678901234567890
+my $line = $s.$s.$s;		# about 185 MS at 9600 baud
 
 is_ok(0x0 == nocarp);				# 2
 my @necessary_param = AltPort->set_test_mode_active(1);
@@ -478,13 +482,9 @@ is_zero($err);					# 133
 
 is_ok("none" eq $ob->handshake("none"));	# 134
 
-$e="testing is a wonderful thing - this is a 60 byte long string";
-#   123456789012345678901234567890123456789012345678901234567890
-my $line = $e.$e.$e;		# about 185 MS at 9600 baud
-
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=$ob->write($line);
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 180);				# 135
 $err=$tock - $tick;
@@ -636,9 +636,9 @@ unless (is_ok ($ob = tie(*PORT,'AltPort', $cfgfile))) {
 }
 
     # tie to PRINT method
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=print PORT $line;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 194
 
@@ -652,7 +652,7 @@ is_bad (($err < 160) or ($err > 210));		# 195
 print "<185> elapsed time=$err\n";
 
     # tie to PRINTF method
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 if ( $] < 5.004 ) {
     $out=sprintf "123456789_%s_987654321", $line;
     $pass=print PORT $out;
@@ -660,7 +660,7 @@ if ( $] < 5.004 ) {
 else {
     $pass=printf PORT "123456789_%s_987654321", $line;
 }
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 196
 
@@ -670,50 +670,172 @@ print "<205> elapsed time=$err\n";
 
     # tie to READLINE method
 is_ok (500 == $ob->read_const_time(500));	# 198
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $fail = <PORT>;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_bad(defined $fail);				# 199
 $err=$tock - $tick;
 is_bad (($err < 480) or ($err > 540));		# 200
 print "<500> elapsed time=$err\n";
 
-## 201 - 215: Port in Use (new + quiet)
+## 201 - 215: Record and Field Separators
 
-my $ob2;
-is_bad ($ob2 = Win32::SerialPort->new ($file));		# 201
-is_bad (defined $ob2);					# 202
-is_zero ($ob2 = Win32::SerialPort->new ($file, 1));	# 203
-is_bad ($ob2 = Win32::SerialPort->new ($file, 0));	# 204
-is_bad (defined $ob2);					# 205
+my $r = "I am the very model of an output record separator";	## =49
+#        1234567890123456789012345678901234567890123456789
+my $f = "The fields are alive with the sound of music";		## =44
+my $ff = "$f, with fields they have sung for a thousand years";	## =93
+my $rr = "$r, not animal or vegetable or mineral or any other";	## =98
 
-is_bad ($ob2 = Win32API::CommPort->new ($file));	# 206
-is_bad (defined $ob2);					# 207
-is_zero ($ob2 = Win32API::CommPort->new ($file, 1));	# 208
-is_bad ($ob2 = Win32API::CommPort->new ($file, 0));	# 209
-is_bad (defined $ob2);					# 210
+is_ok($ob->output_record_separator eq "");	# 201
+is_ok($ob->output_field_separator eq "");	# 202
+$, = "";
+$\ = "";
 
-is_bad ($ob2 = AltPort->new ($file));		# 211
-is_bad (defined $ob2);				# 212
+    # tie to PRINT method
+$tick=$ob->get_tick_count;
+$pass=print PORT $s, $s, $s;
+$tock=$ob->get_tick_count;
+
+is_ok($pass == 1);				# 203
+
+$err=$tock - $tick;
+is_bad (($err < 160) or ($err > 210));		# 204
+print "<185> elapsed time=$err\n";
+
+is_ok($ob->output_field_separator($f) eq "");	# 205
+$tick=$ob->get_tick_count;
+$pass=print PORT $s, $s, $s;
+$tock=$ob->get_tick_count;
+
+is_ok($pass == 1);				# 206
+
+$err=$tock - $tick;
+is_bad (($err < 260) or ($err > 310));		# 207
+print "<275> elapsed time=$err\n";
+
+is_ok($ob->output_record_separator($r) eq "");	# 208
+$tick=$ob->get_tick_count;
+$pass=print PORT $s, $s, $s;
+$tock=$ob->get_tick_count;
+
+is_ok($pass == 1);				# 209
+
+$err=$tock - $tick;
+is_bad (($err < 310) or ($err > 360));		# 210
+print "<325> elapsed time=$err\n";
 
 if ($naptime) {
     print "++++ page break\n";
     sleep $naptime;
 }
 
-is_zero ($ob2 = AltPort->new ($file, 1));	# 212
-is_bad ($ob2 = AltPort->new ($file, 0));	# 214
-is_bad (defined $ob2);				# 215
+is_ok($ob->output_record_separator eq $r);	# 211
+is_ok($ob->output_field_separator eq $f);	# 212
+$, = $ff;
+$\ = $rr;
+
+$tick=$ob->get_tick_count;
+$pass=print PORT $s, $s, $s;
+$tock=$ob->get_tick_count;
+
+$, = "";
+$\ = "";
+is_ok($pass == 1);				# 213
+
+$err=$tock - $tick;
+is_bad (($err < 310) or ($err > 360));		# 214
+print "<325> elapsed time=$err\n";
+
+$, = $ff;
+$\ = $rr;
+is_ok($ob->output_field_separator("") eq $f);	# 215
+$tick=$ob->get_tick_count;
+$pass=print PORT $s, $s, $s;
+$tock=$ob->get_tick_count;
+
+$, = "";
+$\ = "";
+is_ok($pass == 1);				# 216
+
+$err=$tock - $tick;
+is_bad (($err < 410) or ($err > 460));		# 217
+print "<425> elapsed time=$err\n";
+
+$, = $ff;
+$\ = $rr;
+is_ok($ob->output_record_separator("") eq $r);	# 218
+$tick=$ob->get_tick_count;
+$pass=print PORT $s, $s, $s;
+$tock=$ob->get_tick_count;
+
+$, = "";
+$\ = "";
+is_ok($pass == 1);				# 219
+
+$err=$tock - $tick;
+is_bad (($err < 460) or ($err > 510));		# 220
+print "<475> elapsed time=$err\n";
+
+
+is_ok($ob->output_field_separator($f) eq "");	# 221
+is_ok($ob->output_record_separator($r) eq "");	# 222
+
+    # tie to PRINTF method
+$tick=$ob->get_tick_count;
+if ( $] < 5.004 ) {
+    $out=sprintf "123456789_%s_987654321", $line;
+    $pass=print PORT $out;
+}
+else {
+    $pass=printf PORT "123456789_%s_987654321", $line;
+}
+$tock=$ob->get_tick_count;
+
+is_ok($pass == 1);				# 223
+
+$err=$tock - $tick;
+is_bad (($err < 240) or ($err > 295));		# 224
+print "<260> elapsed time=$err\n";
+
+is_ok($ob->output_field_separator("") eq $f);	# 225
+is_ok($ob->output_record_separator("") eq $r);	# 226
+
+if ($naptime) {
+    print "++++ page break\n";
+    sleep $naptime;
+}
+
+## 227 - 241: Port in Use (new + quiet)
+
+my $ob2;
+is_bad ($ob2 = Win32::SerialPort->new ($file));		# 227
+is_bad (defined $ob2);					# 228
+is_zero ($ob2 = Win32::SerialPort->new ($file, 1));	# 229
+is_bad ($ob2 = Win32::SerialPort->new ($file, 0));	# 230
+is_bad (defined $ob2);					# 231
+
+is_bad ($ob2 = Win32API::CommPort->new ($file));	# 232
+is_bad (defined $ob2);					# 233
+is_zero ($ob2 = Win32API::CommPort->new ($file, 1));	# 234
+is_bad ($ob2 = Win32API::CommPort->new ($file, 0));	# 235
+is_bad (defined $ob2);					# 236
+
+is_bad ($ob2 = AltPort->new ($file));		# 237
+is_bad (defined $ob2);				# 238
+
+is_zero ($ob2 = AltPort->new ($file, 1));	# 239
+is_bad ($ob2 = AltPort->new ($file, 0));	# 240
+is_bad (defined $ob2);				# 241
 
     # destructor = CLOSE method
 if ( $] < 5.005 ) {
-    is_ok($ob->close);				# 216
+    is_ok($ob->close);				# 242
 }
 else {
-    is_ok(close PORT);				# 216
+    is_ok(close PORT);				# 242
 }
-is_ok(4096 == internal_buffer);			# 217
+is_ok(4096 == internal_buffer);			# 243
 
     # destructor = DESTROY method
 undef $ob;					# Don't forget this one!!
@@ -722,5 +844,5 @@ untie *PORT;
 no strict 'vars';	# turn off strict in order to check
 			# "RAW" symbols not exported by default
 
-is_bad(defined $CloseHandle);			# 218
+is_bad(defined $CloseHandle);			# 244
 $CloseHandle = 1;	# for "-w"

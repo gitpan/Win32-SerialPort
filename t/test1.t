@@ -13,7 +13,7 @@ require 5.003;
 
 BEGIN { $| = 1; print "1..275\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use Win32::SerialPort 0.16;
+use Win32::SerialPort 0.17;
 $loaded = 1;
 print "ok 1\n";
 
@@ -460,9 +460,9 @@ $e="testing is a wonderful thing - this is a 60 byte long string";
 #   123456789012345678901234567890123456789012345678901234567890
 my $line = $e.$e.$e;		# about 185 MS at 9600 baud
 
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=$ob->write($line);
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 180);				# 125
 $err=$tock - $tick;
@@ -595,9 +595,9 @@ unless (is_ok ($ob = tie(*PORT,'Win32::SerialPort', $cfgfile))) {
 }
 
     # tie to PRINT method
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=print PORT $line;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 171
 $err=$tock - $tick;
@@ -610,7 +610,7 @@ if ($naptime) {
 }
 
     # tie to PRINTF method
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 if ( $] < 5.004 ) {
     $out=sprintf "123456789_%s_987654321", $line;
     $pass=print PORT $out;
@@ -618,7 +618,7 @@ if ( $] < 5.004 ) {
 else {
     $pass=printf PORT "123456789_%s_987654321", $line;
 }
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 173
 $err=$tock - $tick;
@@ -628,9 +628,9 @@ print "<205> elapsed time=$err\n";
     # output conversion defaults: -opost onlcr -ocrnl
 $e = "\r"x100;
 $e .= "\n"x160;
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=print PORT $e;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 175
 $err=$tock - $tick;
@@ -638,9 +638,9 @@ is_bad (($err < 250) or ($err > 300));		# 176
 print "<275> elapsed time=$err\n";
 
 is_ok(1 == $ob->stty_opost(1));			# 177
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=print PORT $e;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 178
 $err=$tock - $tick;
@@ -648,9 +648,9 @@ is_bad (($err < 410) or ($err > 465));		# 179
 print "<435> elapsed time=$err\n";
 
 is_ok(1 == $ob->stty_ocrnl(1));			# 180
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=print PORT $e;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 181
 $err=$tock - $tick;
@@ -658,9 +658,9 @@ is_bad (($err < 510) or ($err > 575));		# 182
 print "<535> elapsed time=$err\n";
 
 is_ok(0 == $ob->stty_opost(0));			# 183
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=print PORT $e;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 184
 $err=$tock - $tick;
@@ -668,9 +668,9 @@ is_bad (($err < 250) or ($err > 300));		# 185
 print "<275> elapsed time=$err\n";
 
 is_ok(1 == $ob->stty_opost(1));			# 186
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=print PORT $e;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 187
 $err=$tock - $tick;
@@ -683,9 +683,9 @@ if ($naptime) {
 }
 
 is_ok(0 == $ob->stty_onlcr(0));			# 189
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $pass=print PORT $e;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_ok($pass == 1);				# 190
 $err=$tock - $tick;
@@ -694,9 +694,9 @@ print "<275> elapsed time=$err\n";
 
     # tie to READLINE method
 is_ok (500 == $ob->read_const_time(500));	# 192
-$tick=Win32::GetTickCount();
+$tick=$ob->get_tick_count;
 $fail = <PORT>;
-$tock=Win32::GetTickCount();
+$tock=$ob->get_tick_count;
 
 is_bad(defined $fail);				# 193
 $err=$tock - $tick;
@@ -808,7 +808,7 @@ is_zero($ob->output_xoff);				# 258
 if ( ($] < 5.005) and ($] >= 5.004) ) {
 
         # pulses not supported on GSAR port
-    $tick=Win32::GetTickCount();
+    $tick=$ob->get_tick_count;
     is_ok ($ob->dtr_active(0));			# 259
     is_bad ($ob->pulse_dtr_on(100));		# 260
     is_ok ($ob->dtr_active(1));			# 261
@@ -818,7 +818,7 @@ if ( ($] < 5.005) and ($] >= 5.004) ) {
     is_ok ($ob->rts_active(1));			# 265
     is_bad ($ob->pulse_rts_off(100));		# 266
     is_bad ($ob->pulse_break_on(100));		# 267
-    $tock=Win32::GetTickCount();
+    $tock=$ob->get_tick_count;
 
 if ($naptime) {
     print "++++ page break\n";
@@ -836,25 +836,25 @@ if ($naptime) {
 }
 else {
     is_ok ($ob->dtr_active(0));			# 259
-    $tick=Win32::GetTickCount();
+    $tick=$ob->get_tick_count;
     is_ok ($ob->pulse_dtr_on(100));		# 260
-    $tock=Win32::GetTickCount();
+    $tock=$ob->get_tick_count;
     $err=$tock - $tick;
     is_bad (($err < 180) or ($err > 240));	# 261
     print "<200> elapsed time=$err\n";
 
     is_ok ($ob->dtr_active(1));			# 262
-    $tick=Win32::GetTickCount();
+    $tick=$ob->get_tick_count;
     is_ok ($ob->pulse_dtr_off(200));		# 263
-    $tock=Win32::GetTickCount();
+    $tock=$ob->get_tick_count;
     $err=$tock - $tick;
     is_bad (($err < 370) or ($err > 450));	# 264
     print "<400> elapsed time=$err\n";
 
     is_ok ($ob->rts_active(0));			# 265
-    $tick=Win32::GetTickCount();
+    $tick=$ob->get_tick_count;
     is_ok ($ob->pulse_rts_on(150));		# 266
-    $tock=Win32::GetTickCount();
+    $tock=$ob->get_tick_count;
     $err=$tock - $tick;
     is_bad (($err < 275) or ($err > 345));	# 267
     print "<300> elapsed time=$err\n";
@@ -865,16 +865,16 @@ if ($naptime) {
 }
 
     is_ok ($ob->rts_active(1));			# 268
-    $tick=Win32::GetTickCount();
+    $tick=$ob->get_tick_count;
     is_ok ($ob->pulse_rts_on(50));		# 269
-    $tock=Win32::GetTickCount();
+    $tock=$ob->get_tick_count;
     $err=$tock - $tick;
     is_bad (($err < 80) or ($err > 130));	# 270
     print "<100> elapsed time=$err\n";
 
-    $tick=Win32::GetTickCount();
+    $tick=$ob->get_tick_count;
     is_ok ($ob->pulse_break_on(50));		# 271
-    $tock=Win32::GetTickCount();
+    $tock=$ob->get_tick_count;
     $err=$tock - $tick;
     is_bad (($err < 80) or ($err > 130));	# 272
     print "<100> elapsed time=$err\n";

@@ -142,8 +142,14 @@ Revision history for Perl extension Win32API::SerialPort.
 	- Second production release.
 	- Add "pulse_xxx" functions to support CM17 device on MisterHouse
 	- Remove "list context" support from binary methods in CommPort.
-	  Most were read_onlyanyway. Reflected in test1.t and test3.t.
+	  Most were read_only anyway. Reflected in test1.t and test3.t.
 	- Disable stty_eof unless stty_icanon (bug).
 	- Add methods for the seldom used DCB bits like ignore_null.
 	- Improved documentation on timeouts.
+
+
+0.17  Fri August 13 16:30:15 1999
+	- Add output_record and output_field separator support
+	- Add get_tick_count wrapper for Win32::GetTickCount()
+	- Add stty_opost function to tied syswrite
 
