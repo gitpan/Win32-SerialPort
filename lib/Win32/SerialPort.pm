@@ -1,13 +1,13 @@
 package Win32::SerialPort;
 
 use Win32;
-use Win32API::CommPort qw( :STAT :PARAM 0.15 );
+use Win32API::CommPort qw( :STAT :PARAM 0.16 );
 
 use Carp;
 use strict;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION = '0.15';
+$VERSION = '0.16';
 
 require Exporter;
 ## require AutoLoader;
@@ -1213,6 +1213,7 @@ sub lookfor {
 	my $pat;
 	my $lf_erase = "";
 	my $lf_kill = "";
+	my $lf_eof = "";
 	my $lf_quit = "";
 	my $lf_intr = "";
 	my $nl_2_crnl = 0;
@@ -1235,6 +1236,7 @@ sub lookfor {
 	if ($self->{icanon}) {
 	    $lf_erase = $self->{erase};
 	    $lf_kill = $self->{s_kill};
+	    $lf_eof = $self->{s_eof};
 	}
 
 	if ($self->{isig}) {
@@ -1294,7 +1296,7 @@ sub lookfor {
 	            $self->write($n_char);
 		}
 		$lookbuf = $self->{"_LOOK"};
-		if ($lookbuf =~ /$self->{s_eof}$/) {
+		if (($lf_eof ne "") and ($lookbuf =~ /$lf_eof$/)) {
 		    $self->{"_LOOK"}     = "";
 		    $self->{"_LASTLOOK"} = "";
 		    return $lookbuf;
@@ -1619,7 +1621,7 @@ sub binary {
     if (@_) {
 	return unless defined $self->is_binary( shift );
     }
-    return wantarray ? @binary_opt : $self->is_binary;
+    return $self->is_binary;
 }
 
 sub parity_enable {
@@ -1632,7 +1634,7 @@ sub parity_enable {
             carp "Can't set parity enable on $self->{ALIAS}";
         }
     }
-    return wantarray ? @binary_opt : $self->is_parity_enable;
+    return $self->is_parity_enable;
 }
 
 sub modemlines {
@@ -1825,7 +1827,7 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 
   use Win32;
   require 5.003;
-  use Win32::SerialPort qw( :STAT 0.15 );
+  use Win32::SerialPort qw( :STAT 0.16 );
 
 =head2 Constructors
 
@@ -1895,7 +1897,6 @@ Win32::SerialPort - User interface to Win32 Serial API calls
      # true/false parameters (return scalar context only)
 
   $PortObj->binary(T);		# just say Yes (Win 3.x option)
-
   $PortObj->parity_enable(F);	# faults during input
 
 =head2 Operating Methods
@@ -2039,10 +2040,12 @@ action desired is a message, B<status> provides I<Built-In> BitMask processing:
   $PortObj->stty_isig(0);	# enable quit and intr characters
   $PortObj->stty_icanon(0);	# enable erase and kill characters
 
-  $PortObj->stty("-icanon");	# disable erase and kill char, Unix-style
+  $PortObj->stty("-icanon");	# disable eof, erase and kill char, Unix-style
   @stty_all = $PortObj->stty();	# get all the parameters, Perl-style
 
 =head2 Capability Methods inherited from Win32API::CommPort
+
+These return scalar context only.
 
   can_baud            can_databits           can_stopbits
   can_dtrdsr          can_handshake          can_parity_check 
@@ -2059,19 +2062,11 @@ action desired is a message, B<status> provides I<Built-In> BitMask processing:
   resume_tx           dtr_active             rts_active
   break_active        xoff_active            xon_active
   purge_all           purge_rx               purge_tx
-
-=head2 Methods not yet Implemented
-
-  $PortObj->ignore_null(No);
-  $PortObj->ignore_no_dsr(No);
-  $PortObj->abort_on_error("no");
-  $PortObj->subst_pe_char("no");
-
-  $PortObj->accept_xoff(F);	# hold during output
-  $PortObj->accept_dsr(F);
-  $PortObj->accept_cts(F);
-  $PortObj->send_xoff(N);
-  $PortObj->tx_on_xoff(Y);
+  pulse_rts_on        pulse_rts_off          pulse_dtr_on
+  pulse_dtr_off       ignore_null            ignore_no_dsr
+  subst_pe_char       abort_on_error         output_xoff
+  output_dsr          output_cts             tx_on_xoff
+  input_xoff
 
 
 =head1 DESCRIPTION
@@ -2218,9 +2213,15 @@ typical restrictions against mixing B<print> with B<syswrite> do not
 apply. Since both B<(tied) read> and B<sysread> call the same C<$ob-E<gt>READ>
 method, and since a separate C<$ob-E<gt>read> method has existed for some
 time in Win32::SerialPort, you should always use B<sysread> with the
-tied interface. Because all the tied methods block, they should ALWAYS
-be used with timeout settings and are not suitable for background
-operations and polled loops.
+tied interface.
+
+Because all the tied methods block, they should ALWAYS be used with
+timeout settings and are not suitable for background operations and
+polled loops. The B<sysread> method may return fewer characters than
+requested when a timeout occurs. The method call is still considered
+successful. If a B<sysread> times out after receiving some characters,
+the actual elapsed time may be as much as twice the programmed limit.
+If no bytes are received, the normal timing applies.
 
 =head2 Configuration and Capability Methods
 
@@ -2269,9 +2270,11 @@ the return value of the setting method to check "success".
 Return a list consisting of all acceptable choices for parameters with
 discrete choices. Return a list C<(minimum, maximum)> for parameters
 which can be set to a range of values. Binary selections have no need
-to call this way - but will get C<(0,1)> if they do. The null list
-C<(undef)> will be returned for failed calls in list context (e.g. for
-an invalid or unexpected argument). 
+to call this way - but will get C<(0,1)> if they do. Beginning in
+Version 0.16, Binary selections inherited from Win32API::CommPort may
+not return anything useful in list context. The null list C<(undef)>
+will be returned for failed calls in list context (e.g. for an invalid
+or unexpected argument). 
 
 =item Asynchronous (Background) I/O
 
@@ -2283,12 +2286,14 @@ Perl Tk modules and callbacks from the event loop.
 
 =item Timeouts
 
-The API provides two timing models. The first applies only to read and
+The API provides two timing models. The first applies only to reading and
 essentially determines I<Read Not Ready> by checking the time between
 consecutive characters. The B<ReadFile> operation returns if that time
 exceeds the value set by B<read_interval>. It does this by timestamping
-each character. It appears that at least one character must by received
-to initialize the mechanism.
+each character. It appears that at least one character must by received in
+I<every> B<read> I<call to the API> to initialize the mechanism. The timer
+is then reset by each succeeding character. If no characters are received,
+the read will block indefinitely. 
 
 Setting B<read_interval> to C<0xffffffff> will do a non-blocking read.
 The B<ReadFile> returns immediately whether or not any characters are
@@ -2299,9 +2304,17 @@ A fixed overhead time is added to the product of bytes and per_byte_time.
 A wide variety of timeout options can be defined by selecting the three
 parameters: fixed, each, and size.
 
-Read_total = B<read_const_time> + (B<read_char_time> * bytes_to_read)
+Read_Total = B<read_const_time> + (B<read_char_time> * bytes_to_read)
 
-Write_total = B<write_const_time> + (B<write_char_time> * bytes_to_write)
+Write_Total = B<write_const_time> + (B<write_char_time> * bytes_to_write)
+
+When reading a known number of characters, the I<Read_Total> mechanism is
+recommended. This mechanism I<MUST> be used with I<tied FileHandles> because
+the tie methods can make multiple internal API calls in response to a single
+B<sysread> or B<READLINE>. The I<Read_Interval> mechanism is suitable for
+a B<read> method that expects a response of variable or unknown size. You
+should then also set a long I<Read_Total> timeout as a "backup" in case
+no bytes are received.
 
 =back
 
@@ -2702,7 +2715,8 @@ Thanks to Ken White for testing on NT.
 There exists a linux clone of this module implemented using I<POSIX.pm>.
 It will probably run on other POSIX systems as well. It does not currently
 support the complete set of methods - although portability of user
-programs is excellent for the calls it does support.
+programs is excellent for the calls it does support. It will soon be
+available from CPAN as I<Device::SerialPort>.
 
 =head1 KNOWN LIMITATIONS
 
@@ -2758,12 +2772,12 @@ documentation. Available from I<Micro$oft Pre$$>.
 
 =head1 BUGS
 
-On Win32, a port must be closed before it can be reopened again by the same
+On Win32, a port must B<close> before it can be reopened again by the same
 process. If a physical port can be accessed using more than one name (see
-above), all names are treated as one. Exiting and rerunning the script is ok.
-The perl script can also be run multiple times within a single batch file or
-shell script. The I<Makefile.PL> spawns subshells with backticks to run the
-test suite on Perl 5.003 - ugly, but it works.
+above), all names are treated as one. The perl script can also be run
+multiple times within a single batch file or shell script. The I<Makefile.PL>
+spawns subshells with backticks to run the test suite on Perl 5.003 - ugly,
+but it works.
 
 On NT, a B<read_done> or B<write_done> returns I<False> if a background
 operation is aborted by a purge. Win95 returns I<True>.
@@ -2805,14 +2819,18 @@ under the same terms as Perl itself.
 =head2 COMPATIBILITY
 
 Most of the code in this module has been stable since version 0.12.
-Except for items indicated as I<Experimental>, I do not expect
-functional changes which are not fully backwards compatible. Version
-0.12 added an I<Install.PL> script to put modules into the documented
+Except for items indicated as I<Experimental>, I do not expect functional
+changes which are not fully backwards compatible. However, Version 0.16
+removes the "dummy (0, 1) list" which was returned by many binary methods
+in case they were called in list context. I do not know of any use outside
+the test suite for that feature.
+
+Version 0.12 added an I<Install.PL> script to put modules into the documented
 Namespaces. The script uses I<MakeMaker> tools not available in
 ActiveState 3xx builds. Users of those builds will need to install
 differently (see README). Programs in the test suite are modified for
 the current version. Additions to the configurtion files generated by
 B<save> prevent those created by Version 0.15 from being used by earlier
-Versions. 4 May 1999.
+Versions. 18 July 1999.
 
 =cut

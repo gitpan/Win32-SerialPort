@@ -62,7 +62,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 </A></H1>
 <PRE>  use Win32;
   require 5.003;
-  use Win32API::CommPort qw( :PARAM :STAT 0.15 );
+  use Win32API::CommPort qw( :PARAM :STAT 0.16 );
 </PRE>
 
 <P>
@@ -269,13 +269,6 @@ Additional useful constants may be exported eventually.
 
 <P>
 
-<PRE>  $PortObj-&gt;dtr_active(T);              # direct to hardware
-  $PortObj-&gt;rts_active(Yes);            # returns status of API call
-  $PortObj-&gt;break_active(N);            # NOT state of bit
-</PRE>
-
-<P>
-
 <PRE>  $PortObj-&gt;xoff_active;                # simulate received xoff
   $PortObj-&gt;xon_active;                 # simulate received xon
 </PRE>
@@ -285,6 +278,25 @@ Additional useful constants may be exported eventually.
 <PRE>  $PortObj-&gt;purge_all;
   $PortObj-&gt;purge_rx;
   $PortObj-&gt;purge_tx;
+</PRE>
+
+<P>
+
+<PRE>      # controlling outputs from the port
+  $PortObj-&gt;dtr_active(T);              # sends outputs direct to hardware
+  $PortObj-&gt;rts_active(Yes);            # returns status of API call
+  $PortObj-&gt;break_active(N);            # NOT state of bit
+</PRE>
+
+<P>
+
+<PRE>  $PortObj-&gt;pulse_break_on($milliseconds); # off version is implausible
+  $PortObj-&gt;pulse_rts_on($milliseconds);
+  $PortObj-&gt;pulse_rts_off($milliseconds);
+  $PortObj-&gt;pulse_dtr_on($milliseconds);
+  $PortObj-&gt;pulse_dtr_off($milliseconds);
+      # sets_bit, delays, resets_bit, delays
+      # pulse_xxx methods not supported on Perl 5.004
 </PRE>
 
 <P>
@@ -469,6 +481,83 @@ Consider this A Good Thing.
 
 <P>
 
+Version 0.16 adds <STRONG>pulse</STRONG> methods for the <EM>RTS, BREAK, and DTR</EM> bits. The
+<STRONG>pulse</STRONG> methods assume the bit is in the opposite state when the method is called.
+They set the requested state, delay the specified number of milliseconds,
+set the opposite state, and again delay the specified time. These methods
+are designed to support devices, such as the X10 ``FireCracker'' control
+and some modems, which require pulses on these lines to signal specific
+events or data. Since the 5.00402 Perl distribution from CPAN does not
+support sub-second time delays readily, these methods are not supported on
+that version of Perl.
+
+
+<P>
+
+<PRE>  $PortObj-&gt;pulse_break_on($milliseconds);
+  $PortObj-&gt;pulse_rts_on($milliseconds);
+  $PortObj-&gt;pulse_rts_off($milliseconds);
+  $PortObj-&gt;pulse_dtr_on($milliseconds);
+  $PortObj-&gt;pulse_dtr_off($milliseconds);
+</PRE>
+
+<P>
+
+Version 0.16 also adds <EM>experimental</EM> support for the rest of the option bits available through the <EM>Device Control Block</EM>. They have not been extensively tested and these settings are NOT saved in
+the <STRONG>configuration file</STRONG> by
+<EM>Win32::SerialPort</EM>. Please let me know if one does not work as advertised. [Win32 API bit
+designation]
+
+
+<P>
+
+<PRE>  $PortObj-&gt;ignore_null(0);     # discard \000 bytes on input [fNull]
+</PRE>
+
+<P>
+
+<PRE>  $PortObj-&gt;ignore_no_dsr(0);   # discard input bytes unless DSR
+                                # [fDsrSensitivity]
+</PRE>
+
+<P>
+
+<PRE>  $PortObj-&gt;subst_pe_char(0);   # replace parity errors with B&lt;is_error_char&gt;
+                                # when B&lt;is_parity_enable&gt; [fErrorChar]
+</PRE>
+
+<P>
+
+<PRE>  $PortObj-&gt;abort_on_error(0);  # cancel read/write [fAbortOnError]
+</PRE>
+
+<P>
+
+<PRE>      # next one set by $PortObj-&gt;is_handshake(&quot;dtr&quot;);
+  $PortObj-&gt;output_dsr(0);      # use DSR handshake on output [fOutxDsrFlow]
+</PRE>
+
+<P>
+
+<PRE>      # next one set by $PortObj-&gt;is_handshake(&quot;rts&quot;);
+  $PortObj-&gt;output_cts(0);      # use CTS handshake on output [fOutxCtsFlow]
+</PRE>
+
+<P>
+
+<PRE>      # next two set by $PortObj-&gt;is_handshake(&quot;xoff&quot;);
+  $PortObj-&gt;input_xoff(0);      # use Xon/Xoff handshake on input [fInX]
+  $PortObj-&gt;output_xoff(0);     # use Xon/Xoff handshake on output [fOutX]
+</PRE>
+
+<P>
+
+<PRE>  $PortObj-&gt;tx_on_xoff(0);      # continue output even after input xoff sent
+                                # [fTXContinueOnXoff]
+</PRE>
+
+<P>
+
 <P>
 <HR>
 <H2><A NAME="Configuration_and_Capability_Met">Configuration and Capability Methods
@@ -538,9 +627,11 @@ Tk modules and callbacks from the event loop.
 <DT><STRONG><A NAME="item_Timeouts">Timeouts
 
 </A></STRONG><DD>
-The API provides two timing models. The first applies only to read and
+The API provides two timing models. The first applies only to reading and
 essentially determines <EM>Read Not Ready</EM> by checking the time between consecutive characters. The <STRONG>ReadFile</STRONG> operation returns if that time exceeds the value set by <STRONG>is_read_interval</STRONG>. It does this by timestamping each character. It appears that at least one
-character must by received to initialize the mechanism.
+character must by received in
+<EM>every</EM>  <STRONG>read</STRONG>  <EM>call to the API</EM> to initialize the mechanism. The timer is then reset by each succeeding
+character. If no characters are received, the read will block indefinitely. 
 
 
 <P>
@@ -559,12 +650,19 @@ parameters: fixed, each, and size.
 
 <P>
 
-Read_total = <STRONG>is_read_const_time</STRONG> + (<STRONG>is_read_char_time</STRONG> * bytes_to_read)
+Read_Total = <STRONG>is_read_const_time</STRONG> + (<STRONG>is_read_char_time</STRONG> * bytes_to_read)
 
 
 <P>
 
-Write_total = <STRONG>is_write_const_time</STRONG> + (<STRONG>is_write_char_time</STRONG> * bytes_to_write)
+Write_Total = <STRONG>is_write_const_time</STRONG> + (<STRONG>is_write_char_time</STRONG> * bytes_to_write)
+
+
+<P>
+
+When reading a known number of characters, the <EM>Read_Total</EM> mechanism is recommended. This mechanism <EM>MUST</EM> be used with
+<EM>Win32::SerialPort tied FileHandles</EM> because the tie methods can make multiple internal API calls. The <EM>Read_Interval</EM> mechanism is suitable for a <STRONG>read_bg</STRONG> method that expects a response of variable or unknown size. You should then
+also set a long <EM>Read_Total</EM> timeout as a ``backup'' in case no bytes are received.
 
 
 <P>
@@ -984,11 +1082,12 @@ experimenting.
 
 <P>
 
-On Win32, a port must be closed before it can be reopened again by the same
-process. If a physical port can be accessed using more than one name (see
-above), all names are treated as one. Exiting and rerunning the script is
-ok. The perl script can also be run multiple times within a single batch
-file or shell script.
+On Win32, a port must <STRONG>close</STRONG> before it can be reopened again by the same process. If a physical port can
+be accessed using more than one name (see above), all names are treated as
+one. The perl script can also be run multiple times within a single batch
+file or shell script. The <EM>Makefile.PL</EM>
+spawns subshells with backticks to run the test suite on Perl 5.003 - ugly,
+but it works.
 
 
 <P>
@@ -1004,7 +1103,8 @@ It ``sort-of-tracks'' <STRONG>$!</STRONG> in 5.003 and 5.004, but YMMV.
 
 <P>
 
-A few NT systems seem to set <STRONG>can_parity_enable</STRONG> true, but do not actually support setting <STRONG>is_parity_enable</STRONG>. This may be a characteristic of certain third-party serial drivers.
+A few NT systems seem to set <STRONG>can_parity_enable</STRONG> true, but do not actually support setting <STRONG>is_parity_enable</STRONG>. This may be a characteristic of certain third-party serial drivers. Or a
+Microsoft bug. I have not been able to reproduce it on my system.
 
 
 <P>
@@ -1085,12 +1185,19 @@ under the same terms as Perl itself.
 </A></H2>
 Most of the code in this module has been stable since version 0.12. Except
 for items indicated as <EM>Experimental</EM>, I do not expect functional changes which are not fully backwards
-compatible. Version 0.12 added an <EM>Install.PL</EM> script to put modules into the documented Namespaces. The script uses <EM>MakeMaker</EM> tools not available in ActiveState 3xx builds. Users of those builds will
+compatible. However, Version 0.16 removes the ``dummy (0, 1) list'' which
+was returned by many binary methods in case they were called in list
+context. I do not know of any use outside the test suite for that feature.
+
+
+<P>
+
+Version 0.12 added an <EM>Install.PL</EM> script to put modules into the documented Namespaces. The script uses <EM>MakeMaker</EM> tools not available in ActiveState 3xx builds. Users of those builds will
 need to install differently (see README). Programs in the test suite are
 modified for the current version. Additions to the configurtion files
 generated by
 <STRONG>save</STRONG> prevent those created by Version 0.15 from being used by earlier Versions.
-4 May 1999.
+18 July 1999.
 
 
 <P>

@@ -1,12 +1,13 @@
 Win32::SerialPort and Win32API::CommPort
-VERSION=0.15, 08 May 1999
+VERSION=0.16, 18 July 1999
 
 Hello Serial Port users:
 
 If you are not running Windows, you want the Device::SerialPort module
 instead of this one. It has a compatible user interface and runs on
 Operating Systems that fully support POSIX.pm. Available from your
-favorite CPAN site.
+favorite CPAN site shortly. Since someone asked, MS-DOS does NOT
+support POSIX.pm.
 
 These modules are intended for Win32 ports of Perl without requiring
 a compiler or using XS. In every case, compatibility has been selected
@@ -16,7 +17,7 @@ report if you do. I have tested with the ActiveState (3xx and 5xx) and
 Core (GS 5.004_02) distributions. But these modules should work on any
 Win32 version that supports Aldo Calpini's Win32::API.
 
-This is the first production release. Essentially all features are now
+This is the second production release. All planned features are now
 implemented. A few are still experimental - see the documentation.
 I suspect there are still bugs - but I only know of one: "is_parity_enable"
 sometimes fails on NT (test4.t #86). I have not been able to duplicate this
@@ -34,7 +35,7 @@ UPGRADE GOTCHAS:
    versions (0.14 and below).
 
 2. The configuration file used by start, restart and tie must be
-   regenerated (by save) for this version. Sorry about that.
+   regenerated (by save) for Version 0.15 and above. Sorry about that.
 
 3. The defaults for the stty_xxx parameters have been changed to no
    processing (raw data). In earlier versions, the default matched
@@ -65,7 +66,15 @@ COMPATIBILITY NOTES:
    user took advantage of the (previously undocumented) support for
    regular expressions, they will have to revise their code to the
    new (less ambiguous) syntax borrowed from Expect.pm. Timing and
-   efficiency should be improved.
+   efficiency should be improved. Most changes were in Version 0.15.
+
+4. Version 0.16 eliminated the "dummy (0, 1) list" returned by most
+   of the binary methods in case they were called in list context.
+   I do not think that feature was used outside the test suite.
+
+5. The documentation on read_interval and read_const_time has been
+   improved based on testing. The functions have not changed - only
+   the description of how they work (and the new recommendations).
 
 These modules use Aldo Calpini's Win32::API module extensively. It is
 available at:
@@ -221,7 +230,7 @@ you know Unix.
 
 The Perl Journal #13 included an article on Controlling a Modem with
 Win32::SerialPort. Examples from the article and additional demos can be
-found on the websire below.
+found on the website below.
 
 Please tell me what does and what doesn't work. The module has proven
 to be pretty robust. But I can't test all possible configurations.

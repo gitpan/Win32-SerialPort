@@ -65,7 +65,7 @@ $_ResetEvent = new Win32::API("kernel32", "ResetEvent", [N], I);
 use strict;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $RBUF_Size);
-$VERSION = '0.15';
+$VERSION = '0.16';
 $RBUF_Size = 4096;
 
 require Exporter;
@@ -941,13 +941,20 @@ sub new {
 
     # changable dcb parameters
     # 0 = no change requested
-    # integer: requested value or (value+1 if 0 is a legal value)
-    # binary: 1=false requested, 2=true requested
+    # mask_on: requested value for OR
+    # mask_off: complement of requested value for AND
 
     $self->{"_N_FM_ON"}		= 0;
     $self->{"_N_FM_OFF"}	= 0;
 
+    $self->{"_N_AUX_ON"}	= 0;
+    $self->{"_N_AUX_OFF"}	= 0;
+
     ### "VALUE" is initialized from DCB by default (but also in %validate)
+
+    # 0 = no change requested
+    # integer: requested value or (value+1 if 0 is a legal value)
+    # binary: 1=false requested, 2=true requested
 
     $self->{"_N_XONLIM"}     	= 0;
     $self->{"_N_XOFFLIM"}     	= 0;
@@ -1185,6 +1192,27 @@ sub update_DCB {
         $self->{"_N_PARITY_EN"} = 0;
     }
 
+## DEBUG ##
+##	printf "_N_AUX_ON=%lx\n", $self->{"_N_AUX_ON"}; ## DEBUG ##
+##	printf "_N_AUX_OFF=%lx\n", $self->{"_N_AUX_OFF"}; ## DEBUG ##
+## DEBUG ##
+
+    if ( $self->{"_N_AUX_ON"} or $self->{"_N_AUX_OFF"} ) {
+        if ( $self->{"_N_FM_OFF"} ) {
+            $self->{"_N_FM_OFF"} &= $self->{"_N_AUX_OFF"};
+	}
+	else {
+            $self->{"_N_FM_OFF"} = $self->{"_N_AUX_OFF"};
+	}
+        $self->{"_N_FM_ON"}	|= $self->{"_N_AUX_ON"};
+        $self->{"_N_AUX_ON"}	= 0;
+        $self->{"_N_AUX_OFF"}	= 0;
+    }
+## DEBUG ##
+##	printf "_N_FM_ON=%lx\n", $self->{"_N_FM_ON"}; ## DEBUG ##
+##	printf "_N_FM_OFF=%lx\n", $self->{"_N_FM_OFF"}; ## DEBUG ##
+## DEBUG ##
+
     if ( $self->{"_N_FM_ON"} or $self->{"_N_FM_OFF"} ) {
         $self->{"_BitMask"}	&= $self->{"_N_FM_OFF"};
         $self->{"_BitMask"}	|= $self->{"_N_FM_ON"};
@@ -1372,97 +1400,97 @@ sub reset_error {
 
 sub can_baud {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_BAUD"};
+    return $self->{"_C_BAUD"};
 }
 
 sub can_databits {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_DATA"};
+    return $self->{"_C_DATA"};
 }
 
 sub can_stopbits {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_STOP"};
+    return $self->{"_C_STOP"};
 }
 
 sub can_dtrdsr {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_DTRDSR"};
+    return $self->{"_C_DTRDSR"};
 }
 
 sub can_handshake {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_HSHAKE"};
+    return $self->{"_C_HSHAKE"};
 }
 
 sub can_parity_check {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_PARITY_CK"};
+    return $self->{"_C_PARITY_CK"};
 }
 
 sub can_parity_config {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_PARITY_CFG"};
+    return $self->{"_C_PARITY_CFG"};
 }
 
 sub can_parity_enable {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_PARITY_EN"};
+    return $self->{"_C_PARITY_EN"};
 }
 
 sub can_rlsd_config {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_RLSD_CFG"};
+    return $self->{"_C_RLSD_CFG"};
 }
 
 sub can_rlsd {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_RLSD"};
+    return $self->{"_C_RLSD"};
 }
 
 sub can_16bitmode {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_16BITMODE"};
+    return $self->{"_C_16BITMODE"};
 }
 
 sub is_rs232 {
     my $self = shift;
-    return wantarray ? @binary_opt : ($self->{"_TYPE"} == PST_RS232);
+    return ($self->{"_TYPE"} == PST_RS232);
 }
 
 sub is_modem {
     my $self = shift;
-    return wantarray ? @binary_opt : ($self->{"_TYPE"} == PST_MODEM);
+    return ($self->{"_TYPE"} == PST_MODEM);
 }
 
 sub can_rtscts {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_RTSCTS"};
+    return $self->{"_C_RTSCTS"};
 }
 
 sub can_xonxoff {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_XONXOFF"};
+    return $self->{"_C_XONXOFF"};
 }
 
 sub can_xon_char {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_XON_CHAR"};
+    return $self->{"_C_XON_CHAR"};
 }
 
 sub can_spec_char {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_SPECHAR"};
+    return $self->{"_C_SPECHAR"};
 }
 
 sub can_interval_timeout {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_INT_TIME"};
+    return $self->{"_C_INT_TIME"};
 }
 
 sub can_total_timeout {
     my $self = shift;
-    return wantarray ? @binary_opt : $self->{"_C_TOT_TIME"};
+    return $self->{"_C_TOT_TIME"};
 }
 
 sub is_handshake {
@@ -2017,28 +2045,286 @@ sub is_parity_enable {
     return ($self->{"_BitMask"} & FM_fParity);
 }
 
+sub ignore_null {
+    my $self = shift;
+    if (@_) {
+        if ($self->{"_N_AUX_OFF"}) {
+            $self->{"_N_AUX_OFF"} &= ~FM_fNull;
+	}
+	else {
+            $self->{"_N_AUX_OFF"} = ~FM_fNull;
+	}
+        if ( yes_true ( shift ) ) {
+            $self->{"_N_AUX_ON"} |= FM_fNull;
+	}
+        update_DCB ($self);
+    }
+    else {
+        return unless fetch_DCB ($self);
+    }
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return ($self->{"_BitMask"} & FM_fNull);
+}
+
+sub ignore_no_dsr {
+    my $self = shift;
+    if (@_) {
+        if ($self->{"_N_AUX_OFF"}) {
+            $self->{"_N_AUX_OFF"} &= ~FM_fDsrSensitivity;
+	}
+	else {
+            $self->{"_N_AUX_OFF"} = ~FM_fDsrSensitivity;
+	}
+        if ( yes_true ( shift ) ) {
+            $self->{"_N_AUX_ON"} |= FM_fDsrSensitivity;
+	}
+        update_DCB ($self);
+    }
+    else {
+        return unless fetch_DCB ($self);
+    }
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return ($self->{"_BitMask"} & FM_fDsrSensitivity);
+}
+
+sub subst_pe_char {
+    my $self = shift;
+    if (@_) {
+        if ($self->{"_N_AUX_OFF"}) {
+            $self->{"_N_AUX_OFF"} &= ~FM_fErrorChar;
+	}
+	else {
+            $self->{"_N_AUX_OFF"} = ~FM_fErrorChar;
+	}
+        if ( yes_true ( shift ) ) {
+            $self->{"_N_AUX_ON"} |= FM_fErrorChar;
+	}
+        update_DCB ($self);
+    }
+    else {
+        return unless fetch_DCB ($self);
+    }
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return ($self->{"_BitMask"} & FM_fErrorChar);
+}
+
+sub abort_on_error {
+    my $self = shift;
+    if (@_) {
+        if ($self->{"_N_AUX_OFF"}) {
+            $self->{"_N_AUX_OFF"} &= ~FM_fAbortOnError;
+	}
+	else {
+            $self->{"_N_AUX_OFF"} = ~FM_fAbortOnError;
+	}
+        if ( yes_true ( shift ) ) {
+            $self->{"_N_AUX_ON"} |= FM_fAbortOnError;
+	}
+        update_DCB ($self);
+    }
+    else {
+        return unless fetch_DCB ($self);
+    }
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return ($self->{"_BitMask"} & FM_fAbortOnError);
+}
+
+sub output_dsr {
+    my $self = shift;
+    if (@_) {
+        if ($self->{"_N_AUX_OFF"}) {
+            $self->{"_N_AUX_OFF"} &= ~FM_fOutxDsrFlow;
+	}
+	else {
+            $self->{"_N_AUX_OFF"} = ~FM_fOutxDsrFlow;
+	}
+        if ( yes_true ( shift ) ) {
+            $self->{"_N_AUX_ON"} |= FM_fOutxDsrFlow;
+	}
+        update_DCB ($self);
+    }
+    else {
+        return unless fetch_DCB ($self);
+    }
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return ($self->{"_BitMask"} & FM_fOutxDsrFlow);
+}
+
+sub output_rts {
+    my $self = shift;
+    if (@_) {
+        if ($self->{"_N_AUX_OFF"}) {
+            $self->{"_N_AUX_OFF"} &= ~FM_fOutxCtsFlow;
+	}
+	else {
+            $self->{"_N_AUX_OFF"} = ~FM_fOutxCtsFlow;
+	}
+        if ( yes_true ( shift ) ) {
+            $self->{"_N_AUX_ON"} |= FM_fOutxCtsFlow;
+	}
+        update_DCB ($self);
+    }
+    else {
+        return unless fetch_DCB ($self);
+    }
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return ($self->{"_BitMask"} & FM_fOutxCtsFlow);
+}
+
+sub input_xoff {
+    my $self = shift;
+    if (@_) {
+        if ($self->{"_N_AUX_OFF"}) {
+            $self->{"_N_AUX_OFF"} &= ~FM_fInX;
+	}
+	else {
+            $self->{"_N_AUX_OFF"} = ~FM_fInX;
+	}
+        if ( yes_true ( shift ) ) {
+            $self->{"_N_AUX_ON"} |= FM_fInX;
+	}
+        update_DCB ($self);
+    }
+    else {
+        return unless fetch_DCB ($self);
+    }
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return ($self->{"_BitMask"} & FM_fInX);
+}
+
+sub output_xoff {
+    my $self = shift;
+    if (@_) {
+        if ($self->{"_N_AUX_OFF"}) {
+            $self->{"_N_AUX_OFF"} &= ~FM_fOutX;
+	}
+	else {
+            $self->{"_N_AUX_OFF"} = ~FM_fOutX;
+	}
+        if ( yes_true ( shift ) ) {
+            $self->{"_N_AUX_ON"} |= FM_fOutX;
+	}
+        update_DCB ($self);
+    }
+    else {
+        return unless fetch_DCB ($self);
+    }
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return ($self->{"_BitMask"} & FM_fOutX);
+}
+
+sub tx_on_xoff {
+    my $self = shift;
+    if (@_) {
+        if ($self->{"_N_AUX_OFF"}) {
+            $self->{"_N_AUX_OFF"} &= ~FM_fTXContinueOnXoff;
+	}
+	else {
+            $self->{"_N_AUX_OFF"} = ~FM_fTXContinueOnXoff;
+	}
+        if ( yes_true ( shift ) ) {
+            $self->{"_N_AUX_ON"} |= FM_fTXContinueOnXoff;
+	}
+        update_DCB ($self);
+    }
+    else {
+        return unless fetch_DCB ($self);
+    }
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return ($self->{"_BitMask"} & FM_fTXContinueOnXoff);
+}
+
 sub dtr_active {
     return unless (@_ == 2);
     my $self = shift;
     my $onoff = yes_true ( shift ) ? SETDTR : CLRDTR ;
-    my $ok = EscapeCommFunction($self->{"_HANDLE"}, $onoff);
-    return wantarray ? @binary_opt : $ok;
+    return EscapeCommFunction($self->{"_HANDLE"}, $onoff);
 }
 
 sub rts_active {
     return unless (@_ == 2);
     my $self = shift;
     my $onoff = yes_true ( shift ) ? SETRTS : CLRRTS ;
-    my $ok = EscapeCommFunction($self->{"_HANDLE"}, $onoff);
-    return wantarray ? @binary_opt : $ok;
+    return EscapeCommFunction($self->{"_HANDLE"}, $onoff);
+}
+
+  # pulse parameters
+
+sub pulse_dtr_off {
+    return unless (@_ == 2);
+    if ( ($] < 5.005) and ($] >= 5.004) ) {
+	nocarp or carp "\npulse_dtr_off not supported on version $]\n";
+	return;
+    }
+    my $self = shift;
+    my $delay = shift;
+    $self->dtr_active(0) or carp "Did not pulse DTR off";
+    Win32::Sleep($delay);
+    $self->dtr_active(1) or carp "Did not restore DTR on";
+    Win32::Sleep($delay);
+}
+
+sub pulse_rts_off {
+    return unless (@_ == 2);
+    if ( ($] < 5.005) and ($] >= 5.004) ) {
+	nocarp or carp "\npulse_rts_off not supported on version $]\n";
+	return;
+    }
+    my $self = shift;
+    my $delay = shift;
+    $self->rts_active(0) or carp "Did not pulse RTS off";
+    Win32::Sleep($delay);
+    $self->rts_active(1) or carp "Did not restore RTS on";
+    Win32::Sleep($delay);
+}
+
+sub pulse_break_on {
+    return unless (@_ == 2);
+    if ( ($] < 5.005) and ($] >= 5.004) ) {
+	nocarp or carp "\npulse_break_on not supported on version $]\n";
+	return;
+    }
+    my $self = shift;
+    my $delay = shift;
+    $self->break_active(1) or carp "Did not pulse BREAK on";
+    Win32::Sleep($delay);
+    $self->break_active(0) or carp "Did not restore BREAK off";
+    Win32::Sleep($delay);
+}
+
+sub pulse_dtr_on {
+    return unless (@_ == 2);
+    if ( ($] < 5.005) and ($] >= 5.004) ) {
+	nocarp or carp "\npulse_dtr_on not supported on version $]\n";
+	return;
+    }
+    my $self = shift;
+    my $delay = shift;
+    $self->dtr_active(1) or carp "Did not pulse DTR on";
+    Win32::Sleep($delay);
+    $self->dtr_active(0) or carp "Did not restore DTR off";
+    Win32::Sleep($delay);
+}
+
+sub pulse_rts_on {
+    return unless (@_ == 2);
+    if ( ($] < 5.005) and ($] >= 5.004) ) {
+	nocarp or carp "\npulse_rts_on not supported on version $]\n";
+	return;
+    }
+    my $self = shift;
+    my $delay = shift;
+    $self->rts_active(1) or carp "Did not pulse RTS on";
+    Win32::Sleep($delay);
+    $self->rts_active(0) or carp "Did not restore RTS off";
+    Win32::Sleep($delay);
 }
 
 sub break_active {
     return unless (@_ == 2);
     my $self = shift;
     my $onoff = yes_true ( shift ) ? SETBREAK : CLRBREAK ;
-    my $ok = EscapeCommFunction($self->{"_HANDLE"}, $onoff);
-    return wantarray ? @binary_opt : $ok;
+    return EscapeCommFunction($self->{"_HANDLE"}, $onoff);
 }
 
 sub xon_active {
@@ -2159,7 +2445,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 
   use Win32;
   require 5.003;
-  use Win32API::CommPort qw( :PARAM :STAT 0.15 );
+  use Win32API::CommPort qw( :PARAM :STAT 0.16 );
 
   ## when available ##  use Win32API::File 0.05 qw( :ALL );
 
@@ -2282,16 +2568,25 @@ Additional useful constants may be exported eventually.
   $PortObj->resume_tx;
   $PortObj->xmit_imm_char(0x03);	# bypass buffer (and suspend)
 
-  $PortObj->dtr_active(T);		# direct to hardware
-  $PortObj->rts_active(Yes);		# returns status of API call
-  $PortObj->break_active(N);		# NOT state of bit
-
   $PortObj->xoff_active;		# simulate received xoff
   $PortObj->xon_active;			# simulate received xon
 
   $PortObj->purge_all;
   $PortObj->purge_rx;
   $PortObj->purge_tx;
+
+      # controlling outputs from the port
+  $PortObj->dtr_active(T);		# sends outputs direct to hardware
+  $PortObj->rts_active(Yes);		# returns status of API call
+  $PortObj->break_active(N);		# NOT state of bit
+
+  $PortObj->pulse_break_on($milliseconds); # off version is implausible
+  $PortObj->pulse_rts_on($milliseconds);
+  $PortObj->pulse_rts_off($milliseconds);
+  $PortObj->pulse_dtr_on($milliseconds);
+  $PortObj->pulse_dtr_off($milliseconds);
+      # sets_bit, delays, resets_bit, delays
+      # pulse_xxx methods not supported on Perl 5.004
 
   $ModemStatus = $PortObj->is_modemlines;
   if ($ModemStatus & $PortObj->MS_RLSD_ON) { print "carrier detected"; }
@@ -2421,6 +2716,51 @@ different size configuration structures in the two cases. Win32 uses the
 I<Physical> hardware, they can not both be used at the same time. The OS
 will complain. Consider this A Good Thing.
 
+Version 0.16 adds B<pulse> methods for the I<RTS, BREAK, and DTR> bits. The
+B<pulse> methods assume the bit is in the opposite state when the method
+is called. They set the requested state, delay the specified number of
+milliseconds, set the opposite state, and again delay the specified time.
+These methods are designed to support devices, such as the X10 "FireCracker"
+control and some modems, which require pulses on these lines to signal
+specific events or data. Since the 5.00402 Perl distribution from CPAN does
+not support sub-second time delays readily, these methods are not supported
+on that version of Perl.
+
+  $PortObj->pulse_break_on($milliseconds);
+  $PortObj->pulse_rts_on($milliseconds);
+  $PortObj->pulse_rts_off($milliseconds);
+  $PortObj->pulse_dtr_on($milliseconds);
+  $PortObj->pulse_dtr_off($milliseconds);
+
+Version 0.16 also adds I<experimental> support for the rest of the option bits
+available through the I<Device Control Block>. They have not been extensively
+tested and these settings are NOT saved in the B<configuration file> by
+I<Win32::SerialPort>. Please let me know if one does not work as advertised.
+[Win32 API bit designation]
+
+  $PortObj->ignore_null(0);	# discard \000 bytes on input [fNull]
+
+  $PortObj->ignore_no_dsr(0);	# discard input bytes unless DSR
+                                # [fDsrSensitivity]
+
+  $PortObj->subst_pe_char(0);   # replace parity errors with B<is_error_char>
+                                # when B<is_parity_enable> [fErrorChar]
+
+  $PortObj->abort_on_error(0);  # cancel read/write [fAbortOnError]
+
+      # next one set by $PortObj->is_handshake("dtr");
+  $PortObj->output_dsr(0);	# use DSR handshake on output [fOutxDsrFlow]
+
+      # next one set by $PortObj->is_handshake("rts");
+  $PortObj->output_cts(0);	# use CTS handshake on output [fOutxCtsFlow]
+
+      # next two set by $PortObj->is_handshake("xoff");
+  $PortObj->input_xoff(0);	# use Xon/Xoff handshake on input [fInX]
+  $PortObj->output_xoff(0);	# use Xon/Xoff handshake on output [fOutX]
+
+  $PortObj->tx_on_xoff(0);	# continue output even after input xoff sent
+				# [fTXContinueOnXoff]
+
 =head2 Configuration and Capability Methods
 
 The Win32 Serial Comm API provides extensive information concerning
@@ -2472,12 +2812,14 @@ Perl Tk modules and callbacks from the event loop.
 
 =item Timeouts
 
-The API provides two timing models. The first applies only to read and
+The API provides two timing models. The first applies only to reading and
 essentially determines I<Read Not Ready> by checking the time between
 consecutive characters. The B<ReadFile> operation returns if that time
 exceeds the value set by B<is_read_interval>. It does this by timestamping
-each character. It appears that at least one character must by received
-to initialize the mechanism.
+each character. It appears that at least one character must by received in
+I<every> B<read> I<call to the API> to initialize the mechanism. The timer
+is then reset by each succeeding character. If no characters are received,
+the read will block indefinitely. 
 
 Setting B<is_read_interval> to C<0xffffffff> will do a non-blocking read.
 The B<ReadFile> returns immediately whether or not any characters are
@@ -2488,9 +2830,17 @@ A fixed overhead time is added to the product of bytes and per_byte_time.
 A wide variety of timeout options can be defined by selecting the three
 parameters: fixed, each, and size.
 
-Read_total = B<is_read_const_time> + (B<is_read_char_time> * bytes_to_read)
+Read_Total = B<is_read_const_time> + (B<is_read_char_time> * bytes_to_read)
 
-Write_total = B<is_write_const_time> + (B<is_write_char_time> * bytes_to_write)
+Write_Total = B<is_write_const_time> + (B<is_write_char_time> * bytes_to_write)
+
+When reading a known number of characters, the I<Read_Total> mechanism is
+recommended. This mechanism I<MUST> be used with
+I<Win32::SerialPort tied FileHandles> because the tie methods can make
+multiple internal API calls. The I<Read_Interval> mechanism is suitable for
+a B<read_bg> method that expects a response of variable or unknown size. You
+should then also set a long I<Read_Total> timeout as a "backup" in case
+no bytes are received.
 
 =back
 
@@ -2728,11 +3078,12 @@ this distribution work differently with ActiveState builds 3xx.
 There is no parameter checking on the "raw" API calls. You probably should
 be familiar with using the calls in "C" before doing much experimenting.
 
-On Win32, a port must be closed before it can be reopened again by the same
+On Win32, a port must B<close> before it can be reopened again by the same
 process. If a physical port can be accessed using more than one name (see
-above), all names are treated as one. Exiting and rerunning the script is ok.
-The perl script can also be run multiple times within a single batch file or
-shell script.
+above), all names are treated as one. The perl script can also be run
+multiple times within a single batch file or shell script. The I<Makefile.PL>
+spawns subshells with backticks to run the test suite on Perl 5.003 - ugly,
+but it works.
 
 On NT, a B<read_done> or B<write_done> returns I<False> if a background
 operation is aborted by a purge. Win95 returns I<True>.
@@ -2742,7 +3093,8 @@ It "sort-of-tracks" B<$!> in 5.003 and 5.004, but YMMV.
 
 A few NT systems seem to set B<can_parity_enable> true, but do not actually
 support setting B<is_parity_enable>. This may be a characteristic of certain
-third-party serial drivers.
+third-party serial drivers. Or a Microsoft bug. I have not been able to
+reproduce it on my system.
 
 __Please send comments and bug reports to wcbirthisel@alum.mit.edu.
 
@@ -2772,14 +3124,18 @@ under the same terms as Perl itself.
 =head2 COMPATIBILITY
 
 Most of the code in this module has been stable since version 0.12.
-Except for items indicated as I<Experimental>, I do not expect
-functional changes which are not fully backwards compatible. Version
-0.12 added an I<Install.PL> script to put modules into the documented
+Except for items indicated as I<Experimental>, I do not expect functional
+changes which are not fully backwards compatible. However, Version 0.16
+removes the "dummy (0, 1) list" which was returned by many binary methods
+in case they were called in list context. I do not know of any use outside
+the test suite for that feature.
+
+Version 0.12 added an I<Install.PL> script to put modules into the documented
 Namespaces. The script uses I<MakeMaker> tools not available in
 ActiveState 3xx builds. Users of those builds will need to install
 differently (see README). Programs in the test suite are modified for
 the current version. Additions to the configurtion files generated by
 B<save> prevent those created by Version 0.15 from being used by earlier
-Versions. 4 May 1999.
+Versions. 18 July 1999.
 
 =cut

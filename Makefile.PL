@@ -7,7 +7,7 @@
 ####    );
 
 print "\n\n            Win32::SerialPort and Win32API::CommPort\n";
-print "                           VERSION 0.15\n";
+print "                           VERSION 0.16\n";
 print "                  No 'Makefile' will be created\n";
 print "         so skip customary 'make', 'dmake', 'nmake' step\n\n";
 print "              Test with nothing connected to COM1\n";
