@@ -69,7 +69,7 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 </A></H1>
 <PRE>  use Win32;
   require 5.003;
-  use Win32::SerialPort qw( :STAT 0.14 );
+  use Win32::SerialPort qw( :STAT 0.15 );
 </PRE>
 
 <P>
@@ -79,8 +79,8 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 <H2><A NAME="Constructors">Constructors
 
 </A></H2>
-<PRE>  $PortObj = new Win32::SerialPort ($PortName)
-       || die &quot;Can't open $PortName: $^E\n&quot;;
+<PRE>  $PortObj = new Win32::SerialPort ($PortName, $quiet)
+       || die &quot;Can't open $PortName: $^E\n&quot;;    # $quiet is optional
 </PRE>
 
 <P>
@@ -129,6 +129,13 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 
 <P>
 
+<PRE>     # specials for test suite only
+  @necessary_param = Win32::SerialPort-&gt;set_test_mode_active(1);
+  $PortObj-&gt;lookclear(&quot;loopback to next 'input' method&quot;);
+</PRE>
+
+<P>
+
 <P>
 <HR>
 <H2><A NAME="Configuration_Parameter_Methods">Configuration Parameter Methods
@@ -146,7 +153,7 @@ Win32::SerialPort - User interface to Win32 Serial API calls
   $PortObj-&gt;baudrate(9600);
   $PortObj-&gt;parity(&quot;odd&quot;);
   $PortObj-&gt;databits(8);
-  $PortObj-&gt;stopbits(1.5);
+  $PortObj-&gt;stopbits(1);
   $PortObj-&gt;debug(0);
 </PRE>
 
@@ -194,13 +201,6 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 
 <P>
 
-<PRE>     # specials for test suite only
-  @necessary_param = Win32::SerialPort-&gt;set_test_mode_active(1);
-  $PortObj-&gt;lookclear(&quot;loopback to next 'input' method&quot;);
-</PRE>
-
-<P>
-
 <P>
 <HR>
 <H2><A NAME="Operating_Methods">Operating Methods
@@ -227,8 +227,8 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 
 <P>
 
-<PRE>  $PortObj-&gt;error_msg(1);  # prints major messages like &quot;Framing Error&quot;
-  $PortObj-&gt;user_msg(1);   # prints minor messages like &quot;Waiting for CTS&quot;
+<PRE>  $PortObj-&gt;error_msg(1);  # prints hardware messages like &quot;Framing Error&quot;
+  $PortObj-&gt;user_msg(1);   # prints function messages like &quot;Waiting for CTS&quot;
 </PRE>
 
 <P>
@@ -278,12 +278,19 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
   $char = getc FH;                           ## GETC      ##
   syswrite FH, $out, length($out), 0;        ## WRITE     ##
   $line = &lt;FH&gt;;                              ## READLINE  ##
+  @lines = &lt;FH&gt;;                             ## READLINE  ##
   printf FH &quot;received: %s&quot;, $line;           ## PRINTF    ##
   read (FH, $in, 5, 0) or die &quot;$^E&quot;;         ## READ      ##
   sysread (FH, $in, 5, 0) or die &quot;$^E&quot;;      ## READ      ##
   close FH || warn &quot;close failed&quot;;           ## CLOSE     ##
   undef $PortObj;
   untie *FH;                                 ## DESTROY   ##
+</PRE>
+
+<P>
+
+<PRE>  $PortObj-&gt;linesize(10);               # with READLINE
+  $PortObj-&gt;lastline(&quot;_GOT_ME_&quot;);       # with READLINE, list only
 </PRE>
 
 <P>
@@ -328,9 +335,13 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 <P>
 
 <PRE>  my $gotit = &quot;&quot;;
+  my $match1 = &quot;&quot;;
   until (&quot;&quot; ne $gotit) {
       $gotit = $PortObj-&gt;lookfor;       # poll until data ready
       die &quot;Aborted without match\n&quot; unless (defined $gotit);
+      last if ($gotit);
+      $match1 = $PortObj-&gt;matchclear;   # match is first thing received
+      last if ($match1);
       sleep 1;                          # polling sample time
   }
 </PRE>
@@ -338,8 +349,16 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 <P>
 
 <PRE>  printf &quot;gotit = %s\n&quot;, $gotit;                # input BEFORE the match
-  my ($match, $after, $pattern) = $PortObj-&gt;lastlook;
+  my ($match, $after, $pattern, $instead) = $PortObj-&gt;lastlook;
       # input that MATCHED, input AFTER the match, PATTERN that matched
+      # input received INSTEAD when timeout without match
+</PRE>
+
+<P>
+
+<PRE>  if ($match1) {
+      $match = $match1;
+  }
   printf &quot;lastlook-match = %s  -after = %s  -pattern = %s\n&quot;,
                            $match,      $after,        $pattern;
 </PRE>
@@ -354,6 +373,13 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 <PRE>  $PortObj-&gt;are_match(&quot;-re&quot;, &quot;pattern&quot;, &quot;text&quot;);
       # possible match strings: &quot;pattern&quot; is a regular expression,
       #                         &quot;text&quot; is a literal string
+</PRE>
+
+<P>
+
+<PRE>  $gotit = $PortObj-&gt;streamline;        # poll until data ready
+  $gotit = $PortObj-&gt;streamline($count);# block until $count chars received
+      # fast alternatives to lookfor with no character processing
 </PRE>
 
 <P>
@@ -386,20 +412,27 @@ action desired is a message, <STRONG>status</STRONG> provides <EM>Built-In</EM> 
 
 <P>
 
-<PRE>  $PortObj-&gt;stty_echo(1);       # echo every character
-  $PortObj-&gt;stty_echoe(1);      # echo erase character with bsdel string
-  $PortObj-&gt;stty_echok(1);      # echo \n after kill character
-  $PortObj-&gt;stty_echonl(0);     # echo \n 
-  $PortObj-&gt;stty_echoke(1);     # echo clear string after kill character
-  $PortObj-&gt;stty_echoctl(0);    # echo &quot;^Char&quot; for control chars
+<PRE>  $PortObj-&gt;stty_echo(0);       # echo every character
+  $PortObj-&gt;stty_echoe(1);      # if echo erase character with bsdel string
+  $PortObj-&gt;stty_echok(1);      # if echo \n after kill character
+  $PortObj-&gt;stty_echonl(0);     # if echo \n 
+  $PortObj-&gt;stty_echoke(1);     # if echo clear string after kill character
+  $PortObj-&gt;stty_echoctl(0);    # if echo &quot;^Char&quot; for control chars
   $PortObj-&gt;stty_istrip(0);     # strip input to 7-bits
-  $PortObj-&gt;stty_icrnl(1);      # map \r to \n on input
+  $PortObj-&gt;stty_icrnl(0);      # map \r to \n on input
   $PortObj-&gt;stty_ocrnl(0);      # map \r to \n on output
   $PortObj-&gt;stty_igncr(0);      # ignore \r on input
   $PortObj-&gt;stty_inlcr(0);      # map \n to \r on input
   $PortObj-&gt;stty_onlcr(1);      # map \n to \r\n on output
+  $PortObj-&gt;stty_opost(0);      # enable output mapping
   $PortObj-&gt;stty_isig(0);       # enable quit and intr characters
-  $PortObj-&gt;stty_icanon(1);     # enable erase and kill characters
+  $PortObj-&gt;stty_icanon(0);     # enable erase and kill characters
+</PRE>
+
+<P>
+
+<PRE>  $PortObj-&gt;stty(&quot;-icanon&quot;);    # disable erase and kill char, Unix-style
+  @stty_all = $PortObj-&gt;stty(); # get all the parameters, Perl-style
 </PRE>
 
 <P>
@@ -475,7 +508,7 @@ parameter setting, event-loop operation, and enhanced error handling.
 
 <P>
 
-To pass in <CODE>NULL</CODE> as the pointer to an optional buffer, pass in <CODE>$null=0</CODE>. This is expected to change to an empty list reference, <CODE>[]</CODE>, when perl supports that form in this usage.
+To pass in <CODE>NULL</CODE> as the pointer to an optional buffer, pass in <CODE>$null=0</CODE>. This is expected to change to an empty list reference, <CODE>[]</CODE>, when Perl supports that form in this usage.
 
 
 <P>
@@ -493,6 +526,15 @@ read/write access. First, the desired
 hardware driver in the Operating System, they are all checked for validity
 by the methods that set them. The
 <STRONG>write_settings</STRONG> method writes a new <EM>Device Control Block</EM> to the driver. The <STRONG>write_settings</STRONG> method will return true if the port is ready for access or <CODE>undef</CODE> on failure. Ports are opened for binary transfers. A separate <CODE>binmode</CODE> is not needed. The USER must release the object if <STRONG>write_settings</STRONG> does not succeed.
+
+
+<P>
+
+Version 0.15 adds an optional <CODE>$quiet</CODE> parameter to <STRONG>new</STRONG>. Failure to open a port prints a error message to STDOUT by default. Since
+only one application at a time can ``own'' the port, one source of failure
+was ``port in use''. There was previously no way to check this without
+getting a ``fail message''. Setting <CODE>$quiet</CODE> disables this built-in message. It also returns 0 instead of <CODE>undef</CODE> if the port is unavailable (still FALSE, used for testing this condition -
+other faults may still return <CODE>undef</CODE>). Use of <CODE>$quiet</CODE> only applies to <STRONG>new</STRONG>.
 
 
 <P>
@@ -532,7 +574,9 @@ An integer from 5 to 8.
 <DT><STRONG><A NAME="item_stopbits">stopbits
 
 </A></STRONG><DD>
-Legal values are 1, 1.5, and 2.
+Legal values are 1, 1.5, and 2. But 1.5 only works with 5 databits, 2 does
+not work with 5 databits, and other combinations may not work on all
+hardware if parity is also used.
 
 
 <P>
@@ -552,8 +596,8 @@ method will write the current parameters to a file that <STRONG>start, tie,</STR
 
 <P>
 
-<PRE>  $PortObj = new Win32::SerialPort ($PortName)
-       || die &quot;Can't open $PortName: $^E\n&quot;;
+<PRE>  $PortObj = new Win32::SerialPort ($PortName, $quiet)
+       || die &quot;Can't open $PortName: $^E\n&quot;;    # $quiet is optional
 </PRE>
 
 <P>
@@ -562,7 +606,7 @@ method will write the current parameters to a file that <STRONG>start, tie,</STR
   $PortObj-&gt;databits(8);
   $PortObj-&gt;baudrate(9600);
   $PortObj-&gt;parity(&quot;none&quot;);
-  $PortObj-&gt;stopbits(1.5);
+  $PortObj-&gt;stopbits(1);
   $PortObj-&gt;handshake(&quot;rts&quot;);
   $PortObj-&gt;buffers(4096, 4096);
 </PRE>
@@ -636,13 +680,13 @@ object is ready for access.
 
 <P>
 
-The third constructor, <STRONG>tie</STRONG>, combines the <STRONG>start</STRONG> with Perl's support for tied FileHandles (see <EM>perltie</EM>). Win32::Serialport implements the complete set of methods: TIEHANDLE,
+The third constructor, <STRONG>tie</STRONG>, combines the <STRONG>start</STRONG> with Perl's support for tied FileHandles (see <EM>perltie</EM>). Win32::SerialPort implements the complete set of methods: TIEHANDLE,
 PRINT, PRINTF, WRITE, READ, GETC, READLINE, CLOSE, and DESTROY. Tied
-FileHandle support is new with Version 0.14 and should be considered
-experimental. The implementation attempts to mimic STDIN/STDOUT behaviour
-as closely as possible: calls block until done, data strings that exceed
-internal buffers are divided transparently into multiple calls, and <STRONG>stty_ocrnl</STRONG>
-is applied to output data (WRITE, PRINT, PRINTF).
+FileHandle support was new with Version 0.14. The implementation attempts
+to mimic STDIN/STDOUT behaviour as closely as possible: calls block until
+done, data strings that exceed internal buffers are divided transparently
+into multiple calls, and <STRONG>stty_onlcr</STRONG>
+is applied to output data (WRITE, PRINT, PRINTF) when <STRONG>stty_opost</STRONG>.
 
 
 <P>
@@ -699,7 +743,7 @@ methods can be used in three different ways:
 <DT><STRONG><A NAME="item_method">method called with an argument
 
 </A></STRONG><DD>
-The parameter is set to the argument, if valid. An invalid argument returns <EM>false</EM> (undef) and the parameter is unchanged. The function will also <EM>carp</EM> if <STRONG>$error_msg</STRONG> is <EM>true</EM>. After <STRONG>write_settings</STRONG>, the port will be updated immediately if allowed. Otherwise, the value
+The parameter is set to the argument, if valid. An invalid argument returns <EM>false</EM> (undef) and the parameter is unchanged. The function will also <EM>carp</EM> if <STRONG>$user_msg</STRONG> is <EM>true</EM>. After <STRONG>write_settings</STRONG>, the port will be updated immediately if allowed. Otherwise, the value
 will be applied when <STRONG>write_settings</STRONG> is called.
 
 
@@ -729,6 +773,52 @@ unexpected argument).
 
 <P>
 
+<DT><STRONG><A NAME="item_Asynchronous">Asynchronous (Background) I/O
+
+</A></STRONG><DD>
+The module handles Polling (do if Ready), Synchronous (block until Ready),
+and Asynchronous Modes (begin and test if Ready) with the timeout choices
+provided by the API. No effort has yet been made to interact with Windows
+events. But background I/O has been used successfully with the Perl Tk
+modules and callbacks from the event loop.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_Timeouts">Timeouts
+
+</A></STRONG><DD>
+The API provides two timing models. The first applies only to read and
+essentially determines <EM>Read Not Ready</EM> by checking the time between consecutive characters. The <STRONG>ReadFile</STRONG> operation returns if that time exceeds the value set by <STRONG>read_interval</STRONG>. It does this by timestamping each character. It appears that at least one
+character must by received to initialize the mechanism.
+
+
+<P>
+
+Setting <STRONG>read_interval</STRONG> to <CODE>0xffffffff</CODE> will do a non-blocking read. The <STRONG>ReadFile</STRONG> returns immediately whether or not any characters are actually read. This
+replicates the behavior of the API.
+
+
+<P>
+
+The other model defines the total time allowed to complete the operation. A
+fixed overhead time is added to the product of bytes and per_byte_time. A
+wide variety of timeout options can be defined by selecting the three
+parameters: fixed, each, and size.
+
+
+<P>
+
+Read_total = <STRONG>read_const_time</STRONG> + (<STRONG>read_char_time</STRONG> * bytes_to_read)
+
+
+<P>
+
+Write_total = <STRONG>write_const_time</STRONG> + (<STRONG>write_char_time</STRONG> * bytes_to_write)
+
+
+<P>
+
 </DL>
 <P>
 <HR>
@@ -750,8 +840,8 @@ Utility subroutines and constants for parameter setting and test:
 
 <P>
 
-<PRE>        LONGsize        SHORTsize       nocarp          Yes_true
-        OS_Error
+<PRE>        LONGsize        SHORTsize       nocarp          yes_true
+        OS_Error        internal_buffer
 </PRE>
 
 <P>
@@ -810,15 +900,44 @@ Offsets into the array returned by <STRONG>status:</STRONG>
 <H2><A NAME="Stty_Emulation">Stty Emulation
 
 </A></H2>
-Nothing wrong with dreaming! At some point in the future, a subset of stty
-options will be available through a <STRONG>stty</STRONG> method. The purpose would be support of existing serial devices which have
-embedded knowledge of Unix communication line and login practices.
+Nothing wrong with dreaming! A subset of stty options is available through
+a <STRONG>stty</STRONG> method. The purpose is support of existing serial devices which have
+embedded knowledge of Unix communication line and login practices. It is
+also needed by Tom Christiansen's Perl Power Tools project. This is new and
+experimental in Version 0.15. The <STRONG>stty</STRONG> method returns an array of ``traditional stty values'' when called with no
+arguments. With arguments, it sets the corresponding parameters.
 
 
 <P>
 
-Version 0.13 added the primative functions required to implement this
-feature. There is not a unified <STRONG>stty</STRONG> method yet. But a number of methods named <STRONG>stty_xxx</STRONG> do what an <EM>experienced stty user</EM> would expect. Unlike <STRONG>stty</STRONG> on Unix, the <STRONG>stty_xxx</STRONG> operations apply only to I/O processed via the <STRONG>lookfor</STRONG> method or the <EM>tied FileHandle</EM> methods. The <STRONG>read, input, read_done, write</STRONG> methods all treat data as ``raw''.
+<PRE>  $ok = $PortObj-&gt;stty(&quot;-icanon&quot;);      # equivalent to stty_icanon(0)
+  @stty_all = $PortObj-&gt;stty();         # get all the parameters, Perl-style
+  $ok = $PortObj-&gt;stty(&quot;cs7&quot;,19200);    # multiple parameters
+  $ok = $PortObj-&gt;stty(@stty_save);     # many parameters
+</PRE>
+
+<P>
+
+The distribution includes a demo script, stty.plx, which gives details of
+usage. Not all Unix parameters are currently supported. But the array will
+contain all those which can be set. The order in <CODE>@stty_all</CODE> will match the following pattern:
+
+
+<P>
+
+<PRE>  baud,                 # numeric, always first
+  &quot;intr&quot;, character,    # the parameters which set special characters
+  &quot;name&quot;, character, ...
+  &quot;stop&quot;, character,    # &quot;stop&quot; will always be the last &quot;pair&quot;
+  &quot;parameter&quot;,          # the on/off settings
+  &quot;-parameter&quot;, ...
+</PRE>
+
+<P>
+
+Version 0.13 added the primitive functions required to implement this
+feature. A number of methods named <STRONG>stty_xxx</STRONG> do what an
+<EM>experienced stty user</EM> would expect. Unlike <STRONG>stty</STRONG> on Unix, the <STRONG>stty_xxx</STRONG> operations apply only to I/O processed via the <STRONG>lookfor</STRONG> method or the <EM>tied FileHandle</EM> methods. The <STRONG>read, input, read_done, write</STRONG> methods all treat data as ``raw''.
 
 
 <P>
@@ -835,9 +954,8 @@ feature. There is not a unified <STRONG>stty</STRONG> method yet. But a number o
         
         cstopb                  stopbits                from port
         
-        clocal ixon crtscts     handshake               from port
-        
-        ixoff                   xon_limit, xoff_limit   from port
+        clocal crtscts          handshake               from port
+        ixon ixoff              handshake               from port
 </PRE>
 
 <P>
@@ -877,9 +995,11 @@ feature. There is not a unified <STRONG>stty</STRONG> method yet. But a number o
  
         stty (output)           SerialPort              Default Value
         ----------------        ------------------      -------------
-        ocrnl                   stty_ocrnl              off
+        ocrnl                   stty_ocrnl              off if opost
         
-        onlcr                   stty_onlcr              on
+        onlcr                   stty_onlcr              on if opost
+        
+        opost                   stty_opost              off
 </PRE>
 
 <P>
@@ -892,15 +1012,15 @@ feature. There is not a unified <STRONG>stty</STRONG> method yet. But a number o
         
         cooked                  lookfor                 none
         
-        echo                    stty_echo               on
+        echo                    stty_echo               off
         
-        echoe                   stty_echoe              on
+        echoe                   stty_echoe              on if echo
         
-        echok                   stty_echok              on
+        echok                   stty_echok              on if echo
         
         echonl                  stty_echonl             off
         
-        echoke                  stty_echoke             on
+        echoke                  stty_echoke             on if echo
         
         echoctl                 stty_echoctl            off
 </PRE>
@@ -912,7 +1032,7 @@ feature. There is not a unified <STRONG>stty</STRONG> method yet. But a number o
 
 <P>
 
-<PRE>        icanon                  stty_icanon             on
+<PRE>        icanon                  stty_icanon             off
       
  
  
@@ -966,18 +1086,19 @@ feature. There is not a unified <STRONG>stty</STRONG> method yet. But a number o
 <P>
 
 <PRE>        start                   xon_char                from port (&quot;\cQ&quot; typ)
+                                is_xon_char             17
         
         stop                    xoff_char               from port (&quot;\cS&quot; typ)
+                                is_xoff_char            19
         
         
         
         The following stty functions have no equivalent in SerialPort:
         --------------------------------------------------------------
-        -a              -v              [-]cread        [-]hupcl
         [-]hup          [-]ignbrk       [-]brkint       [-]ignpar
-        [-]opost        [-]tostop       susp            0
-        50              134             200             exta
-        extb
+        [-]tostop       susp            0               50
+        134             200             exta            extb
+        [-]cread        [-]hupcl
 </PRE>
 
 <P>
@@ -1030,8 +1151,9 @@ using <STRONG>index</STRONG>) unless preceeded in the
 
 <P>
 
-<PRE>   my ($match, $after, $pattern) = $PortObj-&gt;lastlook;
+<PRE>   my ($match, $after, $pattern, $instead) = $PortObj-&gt;lastlook;
      # input that MATCHED, input AFTER the match, PATTERN that matched
+     # input received INSTEAD when timeout without match (&quot;&quot; if match)
 </PRE>
 
 <P>
@@ -1043,20 +1165,21 @@ using <STRONG>index</STRONG>) unless preceeded in the
 
 <P>
 
-The <EM>Regular Expression</EM> handling in <STRONG>lastlook</STRONG> should be considered VERY experimental. Please let me know if you use it
-(or can't use it), so I can confirm bug fixes don't break your code. For
-literal strings,
-<CODE>$match</CODE> and <CODE>$pattern</CODE> should be identical.
+The <EM>Regular Expression</EM> handling in <STRONG>lookfor</STRONG> is still experimental. Please let me know if you use it (or can't use it),
+so I can confirm bug fixes don't break your code. For literal strings,
+<CODE>$match</CODE> and <CODE>$pattern</CODE> should be identical. The <CODE>$instead</CODE> value returns the internal buffer tested by the match logic. A successful
+match or a <STRONG>lookclear</STRONG> resets it to ``'' - so it is only useful for error handling such as timeout
+processing or reporting unexpected responses.
 
 
 <P>
 
 The <STRONG>lookfor</STRONG> method is designed to be sampled periodically (polled). Any characters
 after the match pattern are saved for a subsequent <STRONG>lookfor</STRONG>. Internally, <STRONG>lookfor</STRONG> is implemented using the nonblocking <STRONG>input</STRONG> method when called with no parameter. If called with a count, <STRONG>lookfor</STRONG> calls
-<CODE>$PortObj-</CODE><CODE>read(count)></CODE> which blocks until the <STRONG>read</STRONG> is <EM>Complete</EM> or a &lt;Timeout&gt; occurs. The blocking alternative should not be used unless a
-fault time has been defined using <STRONG>read_interval, read_const_time, and
+<CODE>$PortObj-&gt;read(count)</CODE> which blocks until the <STRONG>read</STRONG> is <EM>Complete</EM> or a <EM>Timeout</EM> occurs. The blocking alternative should not be used unless a fault time has
+been defined using <STRONG>read_interval, read_const_time, and
 read_char_time</STRONG>. It exists mostly to support the <EM>tied FileHandle</EM>
-functions <STRONG>sysread, getc,</STRONG> and <STRONG>&lt;&gt;</STRONG>.
+functions <STRONG>sysread, getc,</STRONG> and <STRONG>&lt;FH&gt;</STRONG>.
 
 
 <P>
@@ -1070,8 +1193,56 @@ case (but nothing is ``looped back''). You will want
 
 <P>
 
+Version 0.15 adds a <STRONG>matchclear</STRONG> method. It is designed to handle the ``special case'' where the match
+string is the first <CODE>character(s)</CODE> received by <STRONG>lookfor</STRONG>. In this case, <CODE>$lookfor_return == ""</CODE>, <STRONG>lookfor</STRONG> does not provide a clear indication that a match was found. The <STRONG>matchclear</STRONG>
+returns the same <CODE>$match</CODE> that would be returned by <STRONG>lastlook</STRONG> and resets it to ``'' without resetting any of the other buffers. Since the
+<STRONG>lookfor</STRONG> already searched <EM>through</EM> the match, <STRONG>matchclear</STRONG> is used to both detect and step-over ``blank'' lines.
+
+
+<P>
+
+The character-by-character processing used by <STRONG>lookfor</STRONG> to support the
+<EM>stty emulation</EM> is fine for interactive activities and tasks which expect short responses.
+But it has too much ``overhead'' to handle fast data streams. Version 0.15
+adds a <STRONG>streamline</STRONG> method which is a fast, line-oriented alternative with no echo support or
+input handling except for pattern searching. Exact benchmarks will vary
+with input data and patterns, but my tests indicate <STRONG>streamline</STRONG> is 10-20 times faster then
+<STRONG>lookfor</STRONG> when uploading files averaging 25-50 characters per line. Since <STRONG>streamline</STRONG> uses the same internal buffers, the <STRONG>lookclear,
+lastlook, are_match, and matchclear</STRONG> methods act the same in both cases. In fact, calls to <STRONG>streamline</STRONG> and <STRONG>lookfor</STRONG> can be interleaved if desired (e.g. an interactive task that starts an
+upload and returns to interactive activity when it is complete).
+
+
+<P>
+
+Beginning in Version 0.15, the <STRONG>READLINE</STRONG> method supports ``list context''. A tied FileHandle can slurp in a whole
+file with an ``@lines = &lt;FH&gt;`` construct. In ''scalar context``, <STRONG>READLINE</STRONG> calls <STRONG>lookfor</STRONG>. But it calls
+<STRONG>streamline</STRONG> in ``list context''. Both contexts also call <STRONG>matchclear</STRONG>
+to detect ``empty'' lines and <STRONG>reset_error</STRONG> to detect hardware problems. The existance of a hardware fault is reported
+with <CODE>$^E</CODE>, although the specific fault is only reported when <STRONG>error_msg</STRONG> is true.
+
+
+<P>
+
+There are two additional methods for supporting ``list context'' input:
+<STRONG>lastline</STRONG> sets an ``end_of_file'' <EM>Regular Expression</EM>, and <STRONG>linesize</STRONG>
+permits changing the ``packet size'' in the blocking read operation to
+allow tuning performance to data characteristics. These two only apply
+during
+<STRONG>READLINE</STRONG>. The default for <STRONG>linesize</STRONG> is 1. There is no default for the <STRONG>lastline</STRONG> method.
+
+
+<P>
+
+In Version 0.15, <EM>Regular Expressions</EM> set by <STRONG>are_match</STRONG> and <STRONG>lastline</STRONG>
+will be pre-compiled using the <EM>qr//</EM> construct on Perl 5.005 and higher. This doubled <STRONG>lookfor</STRONG> and <STRONG>streamline</STRONG> speed in my tests with
+<EM>Regular Expressions</EM> - but actual improvements depend on both patterns and input data.
+
+
+<P>
+
 The functionality of <STRONG>lookfor</STRONG> includes a limited subset of the capabilities found in Austin Schutz's <EM>Expect.pm</EM> for Unix (and Tcl's expect which it resembles). The <CODE>$before, $match, $pattern, and $after</CODE> return values are available if someone needs to create an ``expect''
-subroutine for porting a script.
+subroutine for porting a script. When using multiple patterns, there is one
+important functional difference: <EM>Expect.pm</EM> looks at each pattern in turn and returns the first match found; <STRONG>lookfor</STRONG> and <STRONG>streamline</STRONG> test all patterns and return the one found <EM>earliest</EM> in the input if more than one matches.
 
 
 <P>
@@ -1084,18 +1255,22 @@ addressed by the following methods:
 
 <P>
 
-<PRE>  $PortObj-&gt;stty_icrnl;         # map \r to \n on input (default)
+<PRE>  $PortObj-&gt;stty_icrnl;         # map \r to \n on input
   $PortObj-&gt;stty_igncr;         # ignore \r on input
   $PortObj-&gt;stty_inlcr;         # map \n to \r on input
   $PortObj-&gt;stty_ocrnl;         # map \r to \n on output
-  $PortObj-&gt;stty_onlcr;         # map \n to \r\n on output (default)
+  $PortObj-&gt;stty_onlcr;         # map \n to \r\n on output
+  $PortObj-&gt;stty_opost;         # enable output mapping
 </PRE>
 
 <P>
 
-The default specifies a device which sends ``\r'' at the end of a line and
-requires ``\r\n'' to terminate incoming lines. Many ``dumb terminals'' act
-this way.
+The default specifies a raw device with no input or output processing. In
+Version 0.14, the default was a device which sends ``\r'' at the end of a
+line, requires ``\r\n'' to terminate incoming lines, and expects the
+``host'' to echo every keystroke. Many ``dumb terminals'' act this way and
+the defaults were similar to Unix defaults. But some users found this
+ackward and confusing.
 
 
 <P>
@@ -1106,12 +1281,12 @@ Sometimes, you want perl to echo input characters back to the serial device
 
 <P>
 
-<PRE>  $PortObj-&gt;stty_echo;          # echo every character (default)
-  $PortObj-&gt;stty_echoe;         # echo erase with bsdel string (default)
-  $PortObj-&gt;stty_echok;         # echo \n after kill character (default)
-  $PortObj-&gt;stty_echonl;        # echo \n 
-  $PortObj-&gt;stty_echoke;        # echo clear string after kill (default)
-  $PortObj-&gt;stty_echoctl;       # echo &quot;^Char&quot; for control chars
+<PRE>  $PortObj-&gt;stty_echo;          # echo every character
+  $PortObj-&gt;stty_echoe;         # if echo erase with bsdel string (default)
+  $PortObj-&gt;stty_echok;         # if echo \n after kill character (default)
+  $PortObj-&gt;stty_echonl;        # echo \n even if stty_echo(0)
+  $PortObj-&gt;stty_echoke;        # if echo clear string after kill (default)
+  $PortObj-&gt;stty_echoctl;       # if echo &quot;^Char&quot; for control chars
 </PRE>
 
 <P>
@@ -1187,7 +1362,7 @@ You need something like this (Perl 5.005):
 
 <P>
 
-Always include the <STRONG>undef $tie_ob</STRONG> before the <STRONG>untie</STRONG>. See the <EM>Gotcha</EM>
+Always include the <CODE>undef $tie_ob</CODE> before the <STRONG>untie</STRONG>. See the <EM>Gotcha</EM>
 description in <EM>perltie</EM>.
 
 
@@ -1213,12 +1388,19 @@ Thanks to Ken White for testing on NT.
 
 <P>
 
+There exists a linux clone of this module implemented using <EM>POSIX.pm</EM>. It will probably run on other POSIX systems as well. It does not
+currently support the complete set of methods - although portability of
+user programs is excellent for the calls it does support.
+
+
+<P>
+
 <P>
 <HR>
 <H1><A NAME="KNOWN_LIMITATIONS">KNOWN LIMITATIONS
 
 </A></H1>
-Since everything is (sometimes convoluted but still pure) perl, you can fix
+Since everything is (sometimes convoluted but still pure) Perl, you can fix
 flaws and change limits if required. But please file a bug report if you
 do. This module has been tested with each of the binary perl versions for
 which Win32::API is supported: AS builds 315, 316, 500-509 and GS 5.004_02.
@@ -1247,9 +1429,12 @@ rewrite any earlier files.
 
 </A></STRONG><DD>
 With all the options, this module needs a good tutorial. It doesn't have a
-complete one yet. A <EM>"How to get started"</EM> tutorial will appear in
-<STRONG>The Perl Journal #13</STRONG> (March 1999). The demo programs are a good starting point for additional
-examples.
+complete one yet. A <EM>"How to get started"</EM> tutorial appeared
+<STRONG>The Perl Journal #13</STRONG> (March 1999). Examples from the article are available from <A
+HREF="http://tpj.com">http://tpj.com</A> and from <A
+HREF="http://members.aol.com/Bbirthisel.">http://members.aol.com/Bbirthisel.</A>
+The demo programs in the distribution are a good starting point for
+additional examples. 
 
 
 <P>
@@ -1258,9 +1443,9 @@ examples.
 
 </A></STRONG><DD>
 The size of the Win32 buffers are selectable with <STRONG>buffers</STRONG>. But each read method currently uses a fixed internal buffer of 4096
-bytes. There are other fixed internal buffers as well. The XS version will
-support dynamic buffer sizing. Large operations are automatically converted
-to multiple smaller ones by the <STRONG>tied FileHandle</STRONG> methods.
+bytes. This can be changed in the Win32API::CommPort source and read with <STRONG>internal_buffer</STRONG>. The XS version will support dynamic buffer sizing. Large operations are
+automatically converted to multiple smaller ones by the <STRONG>tied FileHandle</STRONG>
+methods.
 
 
 <P>
@@ -1281,45 +1466,6 @@ Lots of options are just ``passed through from the API''. Some probably
 shouldn't be used together. The module validates the obvious choices when
 possible. For something really fancy, you may need additional API
 documentation. Available from <EM>Micro$oft Pre$$</EM>.
-
-
-<P>
-
-<DT><STRONG><A NAME="item_Asynchronous">Asynchronous (Background) I/O
-
-</A></STRONG><DD>
-This version now handles Polling (do if Ready), Synchronous (block until
-Ready), and Asynchronous Modes (begin and test if Ready) with the timeout
-choices provided by the API. No effort has yet been made to interact with
-TK events (or Windows events).
-
-
-<P>
-
-<DT><STRONG><A NAME="item_Timeouts">Timeouts
-
-</A></STRONG><DD>
-The API provides two timing models. The first applies only to read and
-essentially determines <EM>Read Not Ready</EM> by checking the time between consecutive characters. The <STRONG>ReadFile</STRONG> operation returns if that time exceeds the value set by <STRONG>read_interval</STRONG>. It does this by timestamping each character. It appears that at least one
-character must by received to initialize the mechanism.
-
-
-<P>
-
-The other model defines the total time allowed to complete the operation. A
-fixed overhead time is added to the product of bytes and per_byte_time. A
-wide variety of timeout options can be defined by selecting the three
-parameters: fixed, each, and size.
-
-
-<P>
-
-Read_total = <STRONG>read_const_time</STRONG> + (<STRONG>read_char_time</STRONG> * bytes_to_read)
-
-
-<P>
-
-Write_total = <STRONG>write_const_time</STRONG> + (<STRONG>write_char_time</STRONG> * bytes_to_write)
 
 
 <P>
@@ -1347,6 +1493,11 @@ On NT, a <STRONG>read_done</STRONG> or <STRONG>write_done</STRONG> returns <EM>F
 
 EXTENDED_OS_ERROR ($^E) is not supported by the binary ports before 5.005.
 It ``sort-of-tracks'' <STRONG>$!</STRONG> in 5.003 and 5.004, but YMMV.
+
+
+<P>
+
+A few NT systems seem to set <STRONG>can_parity_enable</STRONG> true, but do not actually support setting <STRONG>parity_enable</STRONG>. This may be a characteristic of certain third-party serial drivers.
 
 
 <P>
@@ -1430,15 +1581,14 @@ under the same terms as Perl itself.
 <H2><A NAME="COMPATIBILITY">COMPATIBILITY
 
 </A></H2>
-This is still Beta code and may be subject to functional changes which are
-not fully backwards compatible. Version 0.12 added an <EM>Install.PL</EM>
-script to put modules into the documented Namespaces. The script uses
-<EM>MakeMaker</EM> tools not available in ActiveState 3xx builds. Users of those builds will
-need to install differently (see README). The <STRONG>lastlook</STRONG>
-method returns additional data in a way possibly incompatible with Version
-0.13 (although I don't know of any relevant examples). All of the programs
-in the test suite have been modified for Version 0.14. They will not work
-with previous versions. 05 Feb 1999.
+Most of the code in this module has been stable since version 0.12. Except
+for items indicated as <EM>Experimental</EM>, I do not expect functional changes which are not fully backwards
+compatible. Version 0.12 added an <EM>Install.PL</EM> script to put modules into the documented Namespaces. The script uses <EM>MakeMaker</EM> tools not available in ActiveState 3xx builds. Users of those builds will
+need to install differently (see README). Programs in the test suite are
+modified for the current version. Additions to the configurtion files
+generated by
+<STRONG>save</STRONG> prevent those created by Version 0.15 from being used by earlier Versions.
+4 May 1999.
 
 
 <P>

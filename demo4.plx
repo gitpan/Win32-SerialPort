@@ -35,8 +35,7 @@ defined $ob->parity_enable('T')	|| die "bad parity_enable";
 $ob->write_settings		|| undef $ob;
 unless ($ob)			{ die "couldn't write_settings"; }
 
-    # required in 0.08
-    # only recommended in 0.09 so can occur after write_settings
+print "write_settings done\n";
 $ob->handshake("rts")		|| die "bad handshake";
 
 print "handshake problem\n" unless ("rts" eq $ob->handshake);

@@ -4,16 +4,16 @@ use lib './lib','../lib'; # can run from here or distribution base
 require 5.003;
 
 # Before installation is performed this script should be runnable with
-# `perl test1.t time' which pauses `time' seconds (1..5) between pages
+# `perl test1.t time' which pauses `time' seconds (0..5) between pages
 
 ######################### We start with some black magic to print on failure.
 
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..198\n"; }
+BEGIN { $| = 1; print "1..225\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use Win32::SerialPort 0.14;
+use Win32::SerialPort 0.15;
 $loaded = 1;
 print "ok 1\n";
 
@@ -91,15 +91,21 @@ sub is_bad {
 }
 
 my $file = "COM1";
-my $cfgfile = $file."_test.cfg";
+if (exists $ENV{Makefile_Test_Port}) {
+    $file = $ENV{Makefile_Test_Port};
+}
 
 my $naptime = 0;	# pause between output pages
 if (@ARGV) {
     $naptime = shift @ARGV;
-    unless ($naptime =~ /^[1-5]$/) {
-	die "Usage: perl test?.t [ page_delay (1..5) ]";
+    unless ($naptime =~ /^[0-5]$/) {
+	die "Usage: perl test?.t [ page_delay (0..5) ] [ COMx ]";
     }
 }
+if (@ARGV) {
+    $file = shift @ARGV;
+}
+my $cfgfile = $file."_test.cfg";
 
 my $fault = 0;
 my $ob;
@@ -657,7 +663,7 @@ foreach $e (@necessary_param) {
     }
 is_zero($fault);				# 189
 
-## 190 - 198: Reopen as (mostly 5.003 Compatible) Tie using File 
+## 190 - 197: Reopen as (mostly 5.003 Compatible) Tie using File 
 
     # constructor = TIEHANDLE method		# 190
 unless (is_ok ($ob = tie(*PORT,'Win32::SerialPort', $cfgfile))) {
@@ -697,23 +703,105 @@ $err=$tock - $tick;
 is_bad (($err < 180) or ($err > 235));		# 194
 print "<205> elapsed time=$err\n";
 
+    # output conversion defaults: -opost onlcr -ocrnl
+$e = "\r"x100;
+$e .= "\n"x160;
+$tick=Win32::GetTickCount();
+$pass=print PORT $e;
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 195
+$err=$tock - $tick;
+is_bad (($err < 250) or ($err > 300));		# 196
+print "<275> elapsed time=$err\n";
+
+is_ok(1 == $ob->stty_opost(1));			# 197
+$tick=Win32::GetTickCount();
+$pass=print PORT $e;
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 198
+$err=$tock - $tick;
+is_bad (($err < 410) or ($err > 465));		# 199
+print "<435> elapsed time=$err\n";
+
+is_ok(1 == $ob->stty_ocrnl(1));			# 200
+$tick=Win32::GetTickCount();
+$pass=print PORT $e;
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 201
+$err=$tock - $tick;
+is_bad (($err < 510) or ($err > 575));		# 202
+print "<535> elapsed time=$err\n";
+
+is_ok(0 == $ob->stty_opost(0));			# 203
+$tick=Win32::GetTickCount();
+$pass=print PORT $e;
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 204
+$err=$tock - $tick;
+is_bad (($err < 250) or ($err > 300));		# 205
+print "<275> elapsed time=$err\n";
+
+is_ok(1 == $ob->stty_opost(1));			# 206
+$tick=Win32::GetTickCount();
+$pass=print PORT $e;
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 207
+$err=$tock - $tick;
+is_bad (($err < 510) or ($err > 575));		# 208
+print "<535> elapsed time=$err\n";
+
+if ($naptime) {
+    print "++++ page break\n";
+    sleep $naptime;
+}
+
+is_ok(0 == $ob->stty_onlcr(0));			# 209
+$tick=Win32::GetTickCount();
+$pass=print PORT $e;
+$tock=Win32::GetTickCount();
+
+is_ok($pass == 1);				# 210
+$err=$tock - $tick;
+is_bad (($err < 250) or ($err > 300));		# 211
+print "<275> elapsed time=$err\n";
+
     # tie to READLINE method
-is_ok (500 == $ob->read_const_time(500));	# 195
+is_ok (500 == $ob->read_const_time(500));	# 212
 $tick=Win32::GetTickCount();
 $fail = <PORT>;
 $tock=Win32::GetTickCount();
 
-is_bad(defined $fail);				# 196
+is_bad(defined $fail);				# 213
 $err=$tock - $tick;
-is_bad (($err < 480) or ($err > 540));		# 197
+is_bad (($err < 480) or ($err > 540));		# 214
 print "<500> elapsed time=$err\n";
+
+## 215 - 224: Port in Use (new + quiet)
+
+my $ob2;
+is_bad ($ob2 = Win32::SerialPort->new ($file));		# 215
+is_bad (defined $ob2);					# 216
+is_zero ($ob2 = Win32::SerialPort->new ($file, 1));	# 217
+is_bad ($ob2 = Win32::SerialPort->new ($file, 0));	# 218
+is_bad (defined $ob2);					# 219
+
+is_bad ($ob2 = Win32API::CommPort->new ($file));	# 220
+is_bad (defined $ob2);					# 221
+is_zero ($ob2 = Win32API::CommPort->new ($file, 1));	# 222
+is_bad ($ob2 = Win32API::CommPort->new ($file, 0));	# 223
+is_bad (defined $ob2);					# 224
 
     # destructor = CLOSE method
 if ( $] < 5.005 ) {
-    is_ok($ob->close);				# 198
+    is_ok($ob->close);				# 225
 }
 else {
-    is_ok(close PORT);				# 198
+    is_ok(close PORT);				# 225
 }
 
     # destructor = DESTROY method

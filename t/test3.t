@@ -4,16 +4,16 @@ use lib '..','./lib','../lib'; # can run from here or distribution base
 require 5.003;
 
 # Before installation is performed this script should be runnable with
-# `perl test3.t time' which pauses `time' seconds (1..5) between pages
+# `perl test3.t time' which pauses `time' seconds (0..5) between pages
 
 ######################### We start with some black magic to print on failure.
 
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..223\n"; }
+BEGIN { $| = 1; print "1..239\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use AltPort qw( :STAT :PARAM 0.14 );		# check inheritance & export
+use AltPort qw( :STAT :PARAM 0.15 );		# check inheritance & export
 $loaded = 1;
 print "ok 1\n";
 
@@ -91,15 +91,21 @@ sub is_bad {
 }
 
 my $file = "COM1";
-my $cfgfile = $file."_test.cfg";
+if (exists $ENV{Makefile_Test_Port}) {
+    $file = $ENV{Makefile_Test_Port};
+}
 
 my $naptime = 0;	# pause between output pages
 if (@ARGV) {
     $naptime = shift @ARGV;
-    unless ($naptime =~ /^[1-5]$/) {
-	die "Usage: perl test?.t [ page_delay (1..5) ]";
+    unless ($naptime =~ /^[0-5]$/) {
+	die "Usage: perl test?.t [ page_delay (0..5) ] [ COMx ]";
     }
 }
+if (@ARGV) {
+    $file = shift @ARGV;
+}
+my $cfgfile = $file."_test.cfg";
 
 my $fault = 0;
 my $ob;
@@ -706,7 +712,7 @@ if ($naptime) {
 ## 214 - 222: Reopen as (mostly 5.003 Compatible) Tie using File 
 
     # constructor = TIEHANDLE method		# 214
-unless (is_ok ($ob = tie(*PORT,'Win32::SerialPort', $cfgfile))) {
+unless (is_ok ($ob = tie(*PORT,'AltPort', $cfgfile))) {
     printf "could not reopen port from $cfgfile\n";
     exit 1;
     # next test would die at runtime without $ob
@@ -749,13 +755,35 @@ $err=$tock - $tick;
 is_bad (($err < 480) or ($err > 540));		# 221
 print "<500> elapsed time=$err\n";
 
+## 122 - 235: Port in Use (new + quiet)
+
+my $ob2;
+is_bad ($ob2 = Win32::SerialPort->new ($file));		# 222
+is_bad (defined $ob2);					# 223
+is_zero ($ob2 = Win32::SerialPort->new ($file, 1));	# 224
+is_bad ($ob2 = Win32::SerialPort->new ($file, 0));	# 225
+is_bad (defined $ob2);					# 226
+
+is_bad ($ob2 = Win32API::CommPort->new ($file));	# 227
+is_bad (defined $ob2);					# 228
+is_zero ($ob2 = Win32API::CommPort->new ($file, 1));	# 229
+is_bad ($ob2 = Win32API::CommPort->new ($file, 0));	# 230
+is_bad (defined $ob2);					# 231
+
+is_bad ($ob2 = AltPort->new ($file));		# 232
+is_bad (defined $ob2);				# 233
+is_zero ($ob2 = AltPort->new ($file, 1));	# 234
+is_bad ($ob2 = AltPort->new ($file, 0));	# 235
+is_bad (defined $ob2);				# 236
+
     # destructor = CLOSE method
 if ( $] < 5.005 ) {
-    is_ok($ob->close);				# 222
+    is_ok($ob->close);				# 237
 }
 else {
-    is_ok(close PORT);				# 222
+    is_ok(close PORT);				# 237
 }
+is_ok(4096 == internal_buffer);			# 238
 
     # destructor = DESTROY method
 undef $ob;					# Don't forget this one!!
@@ -764,5 +792,5 @@ untie *PORT;
 no strict 'vars';	# turn off strict in order to check
 			# "RAW" symbols not exported by default
 
-is_bad(defined $CloseHandle);			# 223
+is_bad(defined $CloseHandle);			# 239
 $CloseHandle = 1;	# for "-w"

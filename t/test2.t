@@ -4,7 +4,7 @@ use lib './lib','../lib'; # can run from here or distribution base
 require 5.003;
 
 # Before installation is performed this script should be runnable with
-# `perl test2.t time' which pauses `time' seconds (1..5) between pages
+# `perl test2.t time' which pauses `time' seconds (0..5) between pages
 
 ######################### We start with some black magic to print on failure.
 
@@ -29,15 +29,21 @@ use strict;
 use Win32;
 
 my $file = "COM1";
-my $cfgfile = $file."_test.cfg";
+if (exists $ENV{Makefile_Test_Port}) {
+    $file = $ENV{Makefile_Test_Port};
+}
 
 my $naptime = 0;	# pause between output pages
 if (@ARGV) {
     $naptime = shift @ARGV;
-    unless ($naptime =~ /^[1-5]$/) {
-	die "Usage: perl test?.t [ page_delay (1..5) ]";
+    unless ($naptime =~ /^[0-5]$/) {
+	die "Usage: perl test?.t [ page_delay (0..5) ] [ COMx ]";
     }
 }
+if (@ARGV) {
+    $file = shift @ARGV;
+}
+my $cfgfile = $file."_test.cfg";
 
 my $fault = 0;
 my $tc = 2;		# next test number

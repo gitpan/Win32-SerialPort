@@ -7,12 +7,19 @@
 ####    );
 
 print "\n\n            Win32::SerialPort and Win32API::CommPort\n";
-print "                      Beta 4, VERSION 0.14\n";
+print "                           VERSION 0.15\n";
 print "                  No 'Makefile' will be created\n";
 print "         so skip customary 'make', 'dmake', 'nmake' step\n\n";
-print "              Test with nothing connected to COM1\n\n";
+print "              Test with nothing connected to COM1\n";
+print "          or for different port: perl makefile.PL PORT\n\n";
 print "             The test suite will run automatically\n";
 print "         Timeout tests can take up to 30 seconds per test\n\n";
+
+my $file = "COM1";
+if (@ARGV) {
+    $file = shift @ARGV;
+}
+$ENV{Makefile_Test_Port} = $file;
 
 if ( $] < 5.004 ) {
     print "On ActiveState Build 3xx, test results will print to 'test.txt'\n\n";
@@ -44,6 +51,7 @@ if ( $] < 5.004 ) {
     $fault +=   summary ("t/test3.t");
     $fault +=   summary ("t/test4.t");
     $fault +=   summary ("t/test5.t");
+    $fault +=   summary ("t/test6.t");
 
     print "All tests OK\n" unless ($fault);
     close TXT;
@@ -51,12 +59,12 @@ if ( $] < 5.004 ) {
 }
 else {
     use Test::Harness;
-    runtests ("t/test1.t", "t/test2.t", "t/test3.t",
-	      "t/test4.t", "t/test5.t", "t/test6.t");
+    runtests ("t/test1.t", "t/test2.t", "t/test3.t", "t/test4.t",
+	      "t/test5.t", "t/test6.t", "t/test7.t");
 
     print "\nRun 'perl Install.PL' to install into proper locations.\n\n";
 }
 print "To run individual tests, type:\n";
-print "    C:\\> perl t/test1.t Page_Pause_Time (1..5)\n";
-print "Continue with 'perl t/test2.t' through 'perl t/test5.t'\n";
+print "    C:\\> perl t/test1.t Page_Pause_Time (0..5) [ COMx ]\n";
+print "Continue with 'perl t/test2.t' through 'perl t/test6.t'\n";
 print "See README and other documentation for additional information.\n\n";

@@ -9,9 +9,12 @@ demo3.plx
 demo4.plx
 demo5.plx
 demo6.plx
+demo7.plx
+demo8.plx
 Install.PL
 Inst_3xx.PL
 options.plx
+stty.plx
 lib/Win32/SerialPort.pm
 lib/Win32API/CommPort.pm
 html/Win32/SerialPort.html
@@ -23,3 +26,4 @@ t/test3.t
 t/test4.t
 t/test5.t
 t/test6.t
+t/test7.t

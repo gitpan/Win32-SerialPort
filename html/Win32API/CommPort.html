@@ -62,7 +62,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 </A></H1>
 <PRE>  use Win32;
   require 5.003;
-  use Win32API::CommPort qw( :PARAM :STAT 0.14 );
+  use Win32API::CommPort qw( :PARAM :STAT 0.15 );
 </PRE>
 
 <P>
@@ -77,8 +77,8 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 <H2><A NAME="Constructors">Constructors
 
 </A></H2>
-<PRE>  $PortObj = new Win32API::CommPort ($PortName)
-       || die &quot;Can't open $PortName: $^E\n&quot;;
+<PRE>  $PortObj = new Win32API::CommPort ($PortName, $quiet)
+       || die &quot;Can't open $PortName: $^E\n&quot;;    # $quiet is optional
 </PRE>
 
 <P>
@@ -104,7 +104,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
   nocarp || carp &quot;Something fishy&quot;;
   $a = SHORTsize;                       # 0xffff
   $a = LONGsize;                        # 0xffffffff
-  $answer = Yes_true(&quot;choice&quot;);         # 1 or 0
+  $answer = yes_true(&quot;choice&quot;);         # 1 or 0
   OS_Error unless ($API_Call_OK);       # prints error
 </PRE>
 
@@ -178,7 +178,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
   $PortObj-&gt;is_baudrate(9600);
   $PortObj-&gt;is_parity(&quot;odd&quot;);
   $PortObj-&gt;is_databits(8);
-  $PortObj-&gt;is_stopbits(1.5);
+  $PortObj-&gt;is_stopbits(1);
   $PortObj-&gt;debug_comm(0);
   $PortObj-&gt;is_xon_limit(100);      # bytes left in buffer
   $PortObj-&gt;is_xoff_limit(100);     # space left in buffer
@@ -193,6 +193,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 
 <PRE>  $rbuf = $PortObj-&gt;is_read_buf;    # read_only except internal use
   $wbuf = $PortObj-&gt;is_write_buf;
+  $size = $PortObj-&gt;internal_buffer;
 </PRE>
 
 <P>
@@ -318,7 +319,7 @@ parameter setting, event-loop operation, and enhanced error handling.
 
 <P>
 
-To pass in <CODE>NULL</CODE> as the pointer to an optional buffer, pass in <CODE>$null=0</CODE>. This is expected to change to an empty list reference, <CODE>[]</CODE>, when perl supports that form in this usage.
+To pass in <CODE>NULL</CODE> as the pointer to an optional buffer, pass in <CODE>$null=0</CODE>. This is expected to change to an empty list reference, <CODE>[]</CODE>, when Perl supports that form in this usage.
 
 
 <P>
@@ -344,6 +345,15 @@ For others, it will attempt to deduce defaults from the hardware or from
 other parameters. The <STRONG>initialize</STRONG> method returns the number of faults (zero if the port is setup ok). The <STRONG>update_DCB</STRONG>
 method writes a new <EM>Device Control Block</EM> to complete the startup and allow the port to be used. Ports are opened for
 binary transfers. A separate <CODE>binmode</CODE> is not needed. The USER must release the object if <STRONG>initialize</STRONG> or <STRONG>update_DCB</STRONG> does not succeed.
+
+
+<P>
+
+Version 0.15 adds an optional <CODE>$quiet</CODE> parameter to <STRONG>new</STRONG>. Failure to open a port prints a error message to STDOUT by default. Since
+only one application at a time can ``own'' the port, one source of failure
+was ``port in use''. There was previously no way to check this without
+getting a ``fail message''. Setting <CODE>$quiet</CODE> disables this built-in message. It also returns 0 instead of <CODE>undef</CODE> if the port is unavailable (still FALSE, used for testing this condition -
+other faults may still return <CODE>undef</CODE>). Use of <CODE>$quiet</CODE> only applies to <STRONG>new</STRONG>.
 
 
 <P>
@@ -390,8 +400,8 @@ initialization is completed. These will automatically update the
 
 <P>
 
-<PRE>  $PortObj = new Win32API::CommPort ($PortName)
-       || die &quot;Can't open $PortName: $^E\n&quot;;
+<PRE>  $PortObj = new Win32API::CommPort ($PortName, $quiet)
+       || die &quot;Can't open $PortName: $^E\n&quot;;    # $quiet is optional
 </PRE>
 
 <P>
@@ -399,7 +409,7 @@ initialization is completed. These will automatically update the
 <PRE>  if $PortObj-&gt;can_databits { $PortObj-&gt;is_databits(8) };
   $PortObj-&gt;is_baudrate(9600);
   $PortObj-&gt;is_parity(&quot;none&quot;);
-  $PortObj-&gt;is_stopbits(1.5);
+  $PortObj-&gt;is_stopbits(1);
   $PortObj-&gt;is_handshake(&quot;rts&quot;);
   $PortObj-&gt;is_buffers(4096, 4096);
   $PortObj-&gt;dtr_active(T);
@@ -513,6 +523,52 @@ value of the setting method to check ``success''.
 
 <P>
 
+<DT><STRONG><A NAME="item_Asynchronous">Asynchronous (Background) I/O
+
+</A></STRONG><DD>
+This version now handles Polling (do if Ready), Synchronous (block until
+Ready), and Asynchronous Modes (begin and test if Ready) with the timeout
+choices provided by the API. No effort has yet been made to interact with
+Windows events. But background I/O has been used successfully with the Perl
+Tk modules and callbacks from the event loop.
+
+
+<P>
+
+<DT><STRONG><A NAME="item_Timeouts">Timeouts
+
+</A></STRONG><DD>
+The API provides two timing models. The first applies only to read and
+essentially determines <EM>Read Not Ready</EM> by checking the time between consecutive characters. The <STRONG>ReadFile</STRONG> operation returns if that time exceeds the value set by <STRONG>is_read_interval</STRONG>. It does this by timestamping each character. It appears that at least one
+character must by received to initialize the mechanism.
+
+
+<P>
+
+Setting <STRONG>is_read_interval</STRONG> to <CODE>0xffffffff</CODE> will do a non-blocking read. The <STRONG>ReadFile</STRONG> returns immediately whether or not any characters are actually read. This
+replicates the behavior of the API.
+
+
+<P>
+
+The other model defines the total time allowed to complete the operation. A
+fixed overhead time is added to the product of bytes and per_byte_time. A
+wide variety of timeout options can be defined by selecting the three
+parameters: fixed, each, and size.
+
+
+<P>
+
+Read_total = <STRONG>is_read_const_time</STRONG> + (<STRONG>is_read_char_time</STRONG> * bytes_to_read)
+
+
+<P>
+
+Write_total = <STRONG>is_write_const_time</STRONG> + (<STRONG>is_write_char_time</STRONG> * bytes_to_write)
+
+
+<P>
+
 </DL>
 <P>
 <HR>
@@ -534,8 +590,8 @@ Utility subroutines and constants for parameter setting and test:
 
 <P>
 
-<PRE>        LONGsize        SHORTsize       nocarp          Yes_true
-        OS_Error
+<PRE>        LONGsize        SHORTsize       nocarp          yes_true
+        OS_Error        internal_buffer
 </PRE>
 
 <P>
@@ -753,7 +809,7 @@ The constants for the <EM>CommProperties structure</EM> returned by
 </A></STRONG><DD>
 The constants for the <EM>Device Control Block</EM> returned by <STRONG>GetCommState</STRONG>
 and updated by <STRONG>SetCommState</STRONG>. Again, included mostly for completeness. But there are some combinations
-of ``FM_f'' settings which are not currrently supported by high-level
+of ``FM_f'' settings which are not currently supported by high-level
 commands. If you need one of those, please report the lack as a bug.
 
 
@@ -852,10 +908,10 @@ Thanks to Ken White for testing on NT.
 
 </A></H1>
 The current version of the module has been designed for testing using the
-ActiveState and Core (GS 5.004_02) ports of perl for Win32 without
+ActiveState and Core (GS 5.004_02) ports of Perl for Win32 without
 requiring a compiler or using XS. In every case, compatibility has been
 selected over performance. Since everything is (sometimes convoluted but
-still pure) perl, you can fix flaws and change limits if required. But
+still pure) Perl, you can fix flaws and change limits if required. But
 please file a bug report if you do. This module has been tested with each
 of the binary perl versions for which Win32::API is supported: AS builds
 315, 316, and 500-509 and GS 5.004_02. It has only been tested on Intel
@@ -868,8 +924,10 @@ hardware.
 <DT><STRONG><A NAME="item_Tutorial">Tutorial
 
 </A></STRONG><DD>
-With all the options, this module needs a good tutorial. It doesn't have
-one yet. The demo programs with <STRONG>Win32::SerialPort</STRONG> provide a starting point for common functions.
+With all the options, this module needs a good tutorial. It doesn't have a
+complete one yet. A <EM>"How to get started"</EM> tutorial appeared
+<STRONG>The Perl Journal #13</STRONG> (March 1999). The demo programs are a good starting point for additional
+examples.
 
 
 <P>
@@ -878,8 +936,9 @@ one yet. The demo programs with <STRONG>Win32::SerialPort</STRONG> provide a sta
 
 </A></STRONG><DD>
 The size of the Win32 buffers are selectable with <STRONG>is_buffers</STRONG>. But each read method currently uses a fixed internal buffer of 4096
-bytes. There are other fixed internal buffers as well. The XS version will
-support dynamic buffer sizing.
+bytes. This can be changed in the module source. The read-only <STRONG>internal_buffer</STRONG> method will give the current size. There are other fixed internal buffers
+as well. But no one has needed to change those. The XS version will support
+dynamic buffer sizing.
 
 
 <P>
@@ -900,45 +959,6 @@ Lots of options are just ``passed through from the API''. Some probably
 shouldn't be used together. The module validates the obvious choices when
 possible. For something really fancy, you may need additional API
 documentation. Available from <EM>Micro$oft Pre$$</EM>.
-
-
-<P>
-
-<DT><STRONG><A NAME="item_Asynchronous">Asynchronous (Background) I/O
-
-</A></STRONG><DD>
-This version now handles Polling (do if Ready), Synchronous (block until
-Ready), and Asynchronous Modes (begin and test if Ready) with the timeout
-choices provided by the API. No effort has yet been made to interact with
-TK events (or Windows events).
-
-
-<P>
-
-<DT><STRONG><A NAME="item_Timeouts">Timeouts
-
-</A></STRONG><DD>
-The API provides two timing models. The first applies only to read and
-essentially determines <EM>Read Not Ready</EM> by checking the time between consecutive characters. The <STRONG>ReadFile</STRONG> operation returns if that time exceeds the value set by <STRONG>is_read_interval</STRONG>. It does this by timestamping each character. It appears that at least one
-character must by received to initialize the mechanism.
-
-
-<P>
-
-The other model defines the total time allowed to complete the operation. A
-fixed overhead time is added to the product of bytes and per_byte_time. A
-wide variety of timeout options can be defined by selecting the three
-parameters: fixed, each, and size.
-
-
-<P>
-
-Read_total = <STRONG>is_read_const_time</STRONG> + (<STRONG>is_read_char_time</STRONG> * bytes_to_read)
-
-
-<P>
-
-Write_total = <STRONG>is_write_const_time</STRONG> + (<STRONG>is_write_char_time</STRONG> * bytes_to_write)
 
 
 <P>
@@ -980,6 +1000,11 @@ On NT, a <STRONG>read_done</STRONG> or <STRONG>write_done</STRONG> returns <EM>F
 
 EXTENDED_OS_ERROR ($^E) is not supported by the binary ports before 5.005.
 It ``sort-of-tracks'' <STRONG>$!</STRONG> in 5.003 and 5.004, but YMMV.
+
+
+<P>
+
+A few NT systems seem to set <STRONG>can_parity_enable</STRONG> true, but do not actually support setting <STRONG>is_parity_enable</STRONG>. This may be a characteristic of certain third-party serial drivers.
 
 
 <P>
@@ -1058,13 +1083,14 @@ under the same terms as Perl itself.
 <H2><A NAME="COMPATIBILITY">COMPATIBILITY
 
 </A></H2>
-This is still Beta code and may be subject to functional changes which are
-not fully backwards compatible. Version 0.12 added an <EM>Install.PL</EM>
-script to put modules into the documented Namespaces. The script uses
-<EM>MakeMaker</EM> tools not available in ActiveState 3xx builds. Users of those builds will
-need to install differently (see README). All of the programs in the test
-suite have been modified for Version 0.14. They will not work with previous
-versions. 05 Feb 1999.
+Most of the code in this module has been stable since version 0.12. Except
+for items indicated as <EM>Experimental</EM>, I do not expect functional changes which are not fully backwards
+compatible. Version 0.12 added an <EM>Install.PL</EM> script to put modules into the documented Namespaces. The script uses <EM>MakeMaker</EM> tools not available in ActiveState 3xx builds. Users of those builds will
+need to install differently (see README). Programs in the test suite are
+modified for the current version. Additions to the configurtion files
+generated by
+<STRONG>save</STRONG> prevent those created by Version 0.15 from being used by earlier Versions.
+4 May 1999.
 
 
 <P>

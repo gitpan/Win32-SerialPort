@@ -1,7 +1,7 @@
 #!perl -w
 
-use lib './lib';
-use Win32::SerialPort 0.14;
+## use lib './lib';
+use Win32::SerialPort 0.15;
 require 5.004;
 
 use strict;
@@ -35,7 +35,10 @@ $tie_ob->error_msg(1);		# use built-in error messages
 $tie_ob->user_msg(1);
 $tie_ob->handshake("xoff");
 ## $tie_ob->handshake("rts");   # will cause output timeouts if no connect
-$tie_ob->stty_onlcr(0);		# depends on terminal
+$tie_ob->stty_onlcr(1);		# depends on terminal
+$tie_ob->stty_opost(1);		# depends on terminal
+$tie_ob->stty_icrnl(1);		# depends on terminal
+$tie_ob->stty_echo(1);		# depends on terminal
 
     # Print Prompts to Port and Main Screen
 print $head;
@@ -76,6 +79,8 @@ if (defined $line) {
 else {
     print "READLINE timed out\n\n";
     print PORT "...READLINE timed out\r\n";
+    my ($patt, $after, $match, $instead) = $tie_ob->lastlook;  ## NEW
+    print "got_instead = $instead\n" if ($instead);             ## NEW
 }
 
     # tie to READ method

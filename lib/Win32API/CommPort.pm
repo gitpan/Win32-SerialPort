@@ -64,8 +64,9 @@ $_ResetEvent = new Win32::API("kernel32", "ResetEvent", [N], I);
 
 use strict;
 
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION = '0.14';
+use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $RBUF_Size);
+$VERSION = '0.15';
+$RBUF_Size = 4096;
 
 require Exporter;
 ## require AutoLoader;
@@ -175,7 +176,7 @@ require Exporter;
 				FM_fAbortOnError	FM_fDummy2 )],
 
 		PARAM	=> [qw( LONGsize	SHORTsize	OS_Error
-				nocarp		yes_true )]);
+				nocarp		internal_buffer	yes_true )]);
 
 
 Exporter::export_ok_tags('STAT', 'RAW', 'COMMPROP', 'DCB', 'PARAM');
@@ -526,6 +527,8 @@ sub set_no_messages {
 
 sub nocarp { return $testactive }
 
+sub internal_buffer { return $RBUF_Size }
+
 sub yes_true {
     my $choice = uc shift;
     my $ans = 0;
@@ -584,6 +587,7 @@ sub new {
     my $MC_Filler		= 0;
 
     $self->{NAME}     = shift;
+    my $quiet	      = shift;
 
     $self->{"_HANDLE"}=CreateFile("$self->{NAME}",
 				  0xc0000000,
@@ -601,9 +605,11 @@ sub new {
 	# template file
 
     unless ($self->{"_HANDLE"} >= 1) {
+        $self->{"_HANDLE"} = 0;
+        return 0 if ($quiet);
+	return if (nocarp);
         OS_Error;
         carp "can't open device: $self->{NAME}\n"; 
-        $self->{"_HANDLE"} = 0;
         return;
     }
 
@@ -695,23 +701,6 @@ sub new {
          $MC_Filler)= unpack($CP_format6, $CommProperties);
     
         if ($Babble) {
-            printf "\$CP_Length= %d\n", $CP_Length;
-            printf "\$CP_Version= %d\n", $CP_Version;
-            printf "\$CP_ServiceMask= %lx\n", $CP_ServiceMask;
-            printf "\$CP_Reserved1= %lx\n", $CP_Reserved1;
-            printf "\$CP_MaxTxQueue= %lx\n", $self->{"_MaxTxQueue"};
-            printf "\$CP_MaxRxQueue= %lx\n", $self->{"_MaxRxQueue"};
-            printf "\$CP_MaxBaud= %lx\n", $CP_MaxBaud;
-            printf "\$CP_ProvSubType= %lx\n", $self->{"_TYPE"};
-            printf "\$CP_ProvCapabilities= %lx\n", $CP_ProvCapabilities;
-            printf "\$CP_SettableParams= %lx\n", $CP_SettableParams;
-            printf "\$CP_SettableBaud= %lx\n", $CP_SettableBaud;
-            printf "\$CP_SettableData= %x\n", $CP_SettableData;
-            printf "\$CP_SettableStopParity= %x\n", $CP_SettableStopParity;
-            printf "\$CP_CurrentTxQueue= %lx\n", $self->{WRITEBUF};
-            printf "\$CP_CurrentRxQueue= %lx\n", $self->{READBUF};
-            printf "\$CP_ProvSpec1= %lx\n", $CP_ProvSpec1;
-            printf "\$CP_ProvSpec2= %lx\n", $CP_ProvSpec2;
     	    printf "\nMODEMDEVCAPS:\n";
             printf "\$MC_ActualSize= %d\n", $CP_ProvChar_start;
             printf "\$MC_ReqSize= %d\n", $MC_ReqSize;
@@ -749,12 +738,33 @@ sub new {
             printf "\$MC_MaxDTE= %d\n", $MC_MaxDTE;
             printf "\$MC_MaxDCE= %d\n", $MC_MaxDCE;
     	    $MC_Filler= $MC_Filler;			# for -w
-    	    }
+    	}
 ##        $MC_ReqSize = 250;
         if ($CP_ProvChar_start != $MC_ReqSize) {
             printf "\nARGH, a Bug! The \$CommProperties buffer must be ";
             printf "at least %d bytes.\n", $MC_ReqSize+60;
         }
+    }
+    
+##    if (1 | $Babble) {
+    if ($Babble) {
+        printf "\$CP_Length= %d\n", $CP_Length;
+        printf "\$CP_Version= %d\n", $CP_Version;
+        printf "\$CP_ServiceMask= %lx\n", $CP_ServiceMask;
+        printf "\$CP_Reserved1= %lx\n", $CP_Reserved1;
+        printf "\$CP_MaxTxQueue= %lx\n", $self->{"_MaxTxQueue"};
+        printf "\$CP_MaxRxQueue= %lx\n", $self->{"_MaxRxQueue"};
+        printf "\$CP_MaxBaud= %lx\n", $CP_MaxBaud;
+        printf "\$CP_ProvSubType= %lx\n", $self->{"_TYPE"};
+        printf "\$CP_ProvCapabilities= %lx\n", $CP_ProvCapabilities;
+        printf "\$CP_SettableParams= %lx\n", $CP_SettableParams;
+        printf "\$CP_SettableBaud= %lx\n", $CP_SettableBaud;
+        printf "\$CP_SettableData= %x\n", $CP_SettableData;
+        printf "\$CP_SettableStopParity= %x\n", $CP_SettableStopParity;
+        printf "\$CP_CurrentTxQueue= %lx\n", $self->{WRITEBUF};
+        printf "\$CP_CurrentRxQueue= %lx\n", $self->{READBUF};
+        printf "\$CP_ProvSpec1= %lx\n", $CP_ProvSpec1;
+        printf "\$CP_ProvSpec2= %lx\n", $CP_ProvSpec2;
     }
 
     # "private" data
@@ -773,7 +783,7 @@ sub new {
     $self->{"_R_OVERLAP"}	= " "x24;
     $self->{"_W_OVERLAP"}	= " "x24;
     $self->{"_TIMEOUT"}		= " "x24;
-    $self->{"_RBUF"}		= " "x4096;
+    $self->{"_RBUF"}		= " "x $RBUF_Size;
 
     # allowed setting hashes
     $self->{"_L_BAUD"}		= {};
@@ -1134,11 +1144,11 @@ sub update_DCB {
         $self->{HSHAKE} = $self->{"_N_HSHAKE"};
         if ($self->{HSHAKE} eq "dtr" ) {
             $self->{"_N_FM_ON"}		= 0x1028;
-            $self->{"_N_FM_OFF"}	= 0xffffdfeb;
+            $self->{"_N_FM_OFF"}	= 0xffffdceb;
 	}
         elsif ($self->{HSHAKE} eq "rts" ) {
             $self->{"_N_FM_ON"}		= 0x2014;
-            $self->{"_N_FM_OFF"}	= 0xffffefd7;
+            $self->{"_N_FM_OFF"}	= 0xffffecd7;
 	}
         elsif ($self->{HSHAKE} eq "xoff" ) {
             $self->{"_N_FM_ON"}		= 0x1310;
@@ -1168,8 +1178,10 @@ sub update_DCB {
 	    }
             else { $self->{"_N_FM_OFF"}	= ~FM_fParity; }
 	}
-	### printf "_N_FM_ON=%lx\n", $self->{"_N_FM_ON"}; ###
-	### printf "_N_FM_OFF=%lx\n", $self->{"_N_FM_OFF"}; ###
+## DEBUG ##
+##	printf "_N_FM_ON=%lx\n", $self->{"_N_FM_ON"}; ## DEBUG ##
+##	printf "_N_FM_OFF=%lx\n", $self->{"_N_FM_OFF"}; ## DEBUG ##
+## DEBUG ##
         $self->{"_N_PARITY_EN"} = 0;
     }
 
@@ -1254,6 +1266,9 @@ sub update_DCB {
 
     if ( SetCommState($self->{"_HANDLE"}, $dcb) ) {
         print "updated DCB for $self->{NAME}\n" if ($Babble);
+## DEBUG ##
+##        printf "DEBUG BitMask= %lx\n", $self->{"_BitMask"}; ## DEBUG ##
+## DEBUG ##
     }
     else {
 	carp "SetCommState failed";
@@ -1585,9 +1600,9 @@ sub read_bg {
     my $got_p = " "x4;
     my $ok;
     my $got = 0;
-    if ($wanted > 4096) {
-        $wanted = 4096;
-        warn "read buffer limited to 4096 bytes at the moment";
+    if ($wanted > $RBUF_Size) {
+        $wanted = $RBUF_Size;
+        warn "read buffer limited to $RBUF_Size bytes at the moment";
     }
     $self->{"_R_BUSY"} = 1;
 
@@ -1997,10 +2012,8 @@ sub is_parity_enable {
         $self->{"_N_PARITY_EN"} = 1 + yes_true ( shift );
         update_DCB ($self);
     }
-    else {
-        return unless fetch_DCB ($self);
-    }
-    ### printf "_BitMask=%lx\n", $self->{"_BitMask"}; ###
+    return unless fetch_DCB ($self);
+##    printf "_BitMask=%lx\n", $self->{"_BitMask"}; ## DEBUG ##
     return ($self->{"_BitMask"} & FM_fParity);
 }
 
@@ -2146,14 +2159,14 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 
   use Win32;
   require 5.003;
-  use Win32API::CommPort qw( :PARAM :STAT 0.14 );
+  use Win32API::CommPort qw( :PARAM :STAT 0.15 );
 
   ## when available ##  use Win32API::File 0.05 qw( :ALL );
 
 =head2 Constructors
 
-  $PortObj = new Win32API::CommPort ($PortName)
-       || die "Can't open $PortName: $^E\n";
+  $PortObj = new Win32API::CommPort ($PortName, $quiet)
+       || die "Can't open $PortName: $^E\n";    # $quiet is optional
 
   @required = qw( BAUD DATA STOP );
   $faults = $PortObj->initialize(@required);
@@ -2167,7 +2180,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
   nocarp || carp "Something fishy";
   $a = SHORTsize;			# 0xffff
   $a = LONGsize;			# 0xffffffff
-  $answer = Yes_true("choice");		# 1 or 0
+  $answer = yes_true("choice");		# 1 or 0
   OS_Error unless ($API_Call_OK);	# prints error
 
   $PortObj->init_done  || die "Not done";
@@ -2217,7 +2230,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
   $PortObj->is_baudrate(9600);
   $PortObj->is_parity("odd");
   $PortObj->is_databits(8);
-  $PortObj->is_stopbits(1.5);
+  $PortObj->is_stopbits(1);
   $PortObj->debug_comm(0);
   $PortObj->is_xon_limit(100);      # bytes left in buffer
   $PortObj->is_xoff_limit(100);     # space left in buffer
@@ -2229,6 +2242,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 
   $rbuf = $PortObj->is_read_buf;    # read_only except internal use
   $wbuf = $PortObj->is_write_buf;
+  $size = $PortObj->internal_buffer;
 
   $PortObj->is_buffers(4096, 4096);  # read, write
 	# returns current in list context
@@ -2295,7 +2309,7 @@ Uses features of the Win32 API to implement non-blocking I/O, serial
 parameter setting, event-loop operation, and enhanced error handling.
 
 To pass in C<NULL> as the pointer to an optional buffer, pass in C<$null=0>.
-This is expected to change to an empty list reference, C<[]>, when perl
+This is expected to change to an empty list reference, C<[]>, when Perl
 supports that form in this usage.
 
 Beyond raw access to the API calls and related constants, this module
@@ -2319,6 +2333,15 @@ method writes a new I<Device Control Block> to complete the startup and
 allow the port to be used. Ports are opened for binary transfers. A
 separate C<binmode> is not needed. The USER must release the object
 if B<initialize> or B<update_DCB> does not succeed.
+
+Version 0.15 adds an optional C<$quiet> parameter to B<new>. Failure
+to open a port prints a error message to STDOUT by default. Since only
+one application at a time can "own" the port, one source of failure was
+"port in use". There was previously no way to check this without getting
+a "fail message". Setting C<$quiet> disables this built-in message. It
+also returns 0 instead of C<undef> if the port is unavailable (still FALSE,
+used for testing this condition - other faults may still return C<undef>).
+Use of C<$quiet> only applies to B<new>.
 
 The fault checking in B<initialize> consists in verifying an I<_N_$item>
 internal variable exists for each I<$item> in the input list. The
@@ -2357,13 +2380,13 @@ I<Device Control Block> as required. The I<init_done> method indicates
 when I<initialize> has completed successfully.
 
 
-  $PortObj = new Win32API::CommPort ($PortName)
-       || die "Can't open $PortName: $^E\n";
+  $PortObj = new Win32API::CommPort ($PortName, $quiet)
+       || die "Can't open $PortName: $^E\n";    # $quiet is optional
 
   if $PortObj->can_databits { $PortObj->is_databits(8) };
   $PortObj->is_baudrate(9600);
   $PortObj->is_parity("none");
-  $PortObj->is_stopbits(1.5);
+  $PortObj->is_stopbits(1);
   $PortObj->is_handshake("rts");
   $PortObj->is_buffers(4096, 4096);
   $PortObj->dtr_active(T);
@@ -2439,6 +2462,36 @@ There is no way to see requests which have not yet been applied.
 Setting the same parameter again overwrites the first request. Test
 the return value of the setting method to check "success".
 
+=item Asynchronous (Background) I/O
+
+This version now handles Polling (do if Ready), Synchronous (block until
+Ready), and Asynchronous Modes (begin and test if Ready) with the timeout
+choices provided by the API. No effort has yet been made to interact with
+Windows events. But background I/O has been used successfully with the
+Perl Tk modules and callbacks from the event loop.
+
+=item Timeouts
+
+The API provides two timing models. The first applies only to read and
+essentially determines I<Read Not Ready> by checking the time between
+consecutive characters. The B<ReadFile> operation returns if that time
+exceeds the value set by B<is_read_interval>. It does this by timestamping
+each character. It appears that at least one character must by received
+to initialize the mechanism.
+
+Setting B<is_read_interval> to C<0xffffffff> will do a non-blocking read.
+The B<ReadFile> returns immediately whether or not any characters are
+actually read. This replicates the behavior of the API.
+
+The other model defines the total time allowed to complete the operation.
+A fixed overhead time is added to the product of bytes and per_byte_time.
+A wide variety of timeout options can be defined by selecting the three
+parameters: fixed, each, and size.
+
+Read_total = B<is_read_const_time> + (B<is_read_char_time> * bytes_to_read)
+
+Write_total = B<is_write_const_time> + (B<is_write_char_time> * bytes_to_write)
+
 =back
 
 =head2 Exports
@@ -2452,8 +2505,8 @@ large sets of symbols exported:
 
 Utility subroutines and constants for parameter setting and test:
 
-	LONGsize	SHORTsize	nocarp		Yes_true
-	OS_Error
+	LONGsize	SHORTsize	nocarp		yes_true
+	OS_Error	internal_buffer
 
 =item :STAT
 
@@ -2569,7 +2622,7 @@ B<GetCommProperties>. Included mostly for completeness.
 
 The constants for the I<Device Control Block> returned by B<GetCommState>
 and updated by B<SetCommState>. Again, included mostly for completeness.
-But there are some combinations of "FM_f" settings which are not currrently
+But there are some combinations of "FM_f" settings which are not currently
 supported by high-level commands. If you need one of those, please report
 the lack as a bug.
 
@@ -2624,10 +2677,10 @@ Thanks to Ken White for testing on NT.
 =head1 KNOWN LIMITATIONS
 
 The current version of the module has been designed for testing using
-the ActiveState and Core (GS 5.004_02) ports of perl for Win32 without
+the ActiveState and Core (GS 5.004_02) ports of Perl for Win32 without
 requiring a compiler or using XS. In every case, compatibility has been
 selected over performance. Since everything is (sometimes convoluted but
-still pure) perl, you can fix flaws and change limits if required. But
+still pure) Perl, you can fix flaws and change limits if required. But
 please file a bug report if you do. This module has been tested with
 each of the binary perl versions for which Win32::API is supported: AS
 builds 315, 316, and 500-509 and GS 5.004_02. It has only been tested on
@@ -2638,14 +2691,17 @@ Intel hardware.
 =item Tutorial
 
 With all the options, this module needs a good tutorial. It doesn't
-have one yet. The demo programs with B<Win32::SerialPort> provide a
-starting point for common functions.
+have a complete one yet. A I<"How to get started"> tutorial appeared
+B<The Perl Journal #13> (March 1999). The demo programs are a good
+starting point for additional examples.
 
 =item Buffers
 
 The size of the Win32 buffers are selectable with B<is_buffers>. But each read
-method currently uses a fixed internal buffer of 4096 bytes. There are other
-fixed internal buffers as well. The XS version will support dynamic buffer
+method currently uses a fixed internal buffer of 4096 bytes. This can be
+changed in the module source. The read-only B<internal_buffer> method will
+give the current size. There are other fixed internal buffers as well. But
+no one has needed to change those. The XS version will support dynamic buffer
 sizing.
 
 =item Modems
@@ -2659,31 +2715,6 @@ Lots of options are just "passed through from the API". Some probably
 shouldn't be used together. The module validates the obvious choices when
 possible. For something really fancy, you may need additional API
 documentation. Available from I<Micro$oft Pre$$>.
-
-=item Asynchronous (Background) I/O
-
-This version now handles Polling (do if Ready), Synchronous (block until
-Ready), and Asynchronous Modes (begin and test if Ready) with the timeout
-choices provided by the API. No effort has yet been made to interact with
-TK events (or Windows events).
-
-=item Timeouts
-
-The API provides two timing models. The first applies only to read and
-essentially determines I<Read Not Ready> by checking the time between
-consecutive characters. The B<ReadFile> operation returns if that time
-exceeds the value set by B<is_read_interval>. It does this by timestamping
-each character. It appears that at least one character must by received
-to initialize the mechanism.
-
-The other model defines the total time allowed to complete the operation.
-A fixed overhead time is added to the product of bytes and per_byte_time.
-A wide variety of timeout options can be defined by selecting the three
-parameters: fixed, each, and size.
-
-Read_total = B<is_read_const_time> + (B<is_read_char_time> * bytes_to_read)
-
-Write_total = B<is_write_const_time> + (B<is_write_char_time> * bytes_to_write)
 
 =back
 
@@ -2708,6 +2739,10 @@ operation is aborted by a purge. Win95 returns I<True>.
 
 EXTENDED_OS_ERROR ($^E) is not supported by the binary ports before 5.005.
 It "sort-of-tracks" B<$!> in 5.003 and 5.004, but YMMV.
+
+A few NT systems seem to set B<can_parity_enable> true, but do not actually
+support setting B<is_parity_enable>. This may be a characteristic of certain
+third-party serial drivers.
 
 __Please send comments and bug reports to wcbirthisel@alum.mit.edu.
 
@@ -2736,12 +2771,15 @@ under the same terms as Perl itself.
 
 =head2 COMPATIBILITY
 
-This is still Beta code and may be subject to functional changes which
-are not fully backwards compatible. Version 0.12 added an I<Install.PL>
-script to put modules into the documented Namespaces. The script uses
-I<MakeMaker> tools not available in ActiveState 3xx builds. Users of
-those builds will need to install differently (see README). All of the
-programs in the test suite have been modified for Version 0.14. They will
-not work with previous versions. 05 Feb 1999.
+Most of the code in this module has been stable since version 0.12.
+Except for items indicated as I<Experimental>, I do not expect
+functional changes which are not fully backwards compatible. Version
+0.12 added an I<Install.PL> script to put modules into the documented
+Namespaces. The script uses I<MakeMaker> tools not available in
+ActiveState 3xx builds. Users of those builds will need to install
+differently (see README). Programs in the test suite are modified for
+the current version. Additions to the configurtion files generated by
+B<save> prevent those created by Version 0.15 from being used by earlier
+Versions. 4 May 1999.
 
 =cut

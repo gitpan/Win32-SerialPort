@@ -4,8 +4,8 @@
 
 BEGIN { $| = 1; print "demo5.plx loaded "; }
 END {print "not ok 1\n" unless $loaded;}
-use lib './lib';
-use Win32::SerialPort 0.13;
+## use lib './lib';
+use Win32::SerialPort 0.15;
 $loaded = 1;
 print "ok 1\n";
 
@@ -18,7 +18,8 @@ use strict;
 my $ob;
 my $pass;
 my @wanted;
-my $out;
+my $before;
+my $did_match;
 
 sub nextline {
     my $delay = 0;
@@ -28,14 +29,22 @@ sub nextline {
     else	{ $prompt = ""; }
     my $timeout=Win32::GetTickCount() + (1000 * $delay);
     my $gotit = "";
-	# this count wraps every month or so
+    my $fmatch = "";
+    my @junk;
+	# this count wraps every 49 days or so
 
     $ob->is_prompt($prompt);
+    $prompt =~ s/\n/\r\n/ogs if ($ob->stty_opost && $ob->stty_onlcr);
     $ob->write($prompt);
 
     for (;;) {
         return unless (defined ($gotit = $ob->lookfor));
-        return $gotit if ($gotit ne "");
+        if ($gotit ne "") {
+	    ($fmatch, @junk) = $ob->lastlook;
+            return ($gotit, $fmatch);
+	}
+	$fmatch = $ob->matchclear;
+	return ("", $fmatch) if ($fmatch);
         return if ($ob->reset_error);
 	if ( $] >= 5.005 ) {
 	    select undef, undef, undef, 0.2; # traditional 5/sec.
@@ -56,8 +65,10 @@ sub waitfor {
     nextline ( shift );
 }
 
-sub cntl_char {
+sub stty_char {
     my $n_char = shift;
+    return '%%%%' if ($n_char eq "");
+    return $n_char if (2 >= length($n_char));
     my $pos = ord $n_char;
     if ($pos < 32) {
         $n_char = "^".chr($pos + 64);
@@ -79,12 +90,19 @@ my $cfgfile = "COM1_test.cfg";
 $ob = Win32::SerialPort->start ($cfgfile) or die "Can't start $cfgfile\n";
     # next test will die at runtime unless $ob
 
-my $intr = cntl_char($ob->stty_intr);
-my $quit = cntl_char($ob->stty_quit);
-my $eof = cntl_char($ob->stty_eof);
-my $eol = cntl_char($ob->stty_eol);
-my $erase = cntl_char($ob->stty_erase);
-my $kill = cntl_char($ob->stty_kill);
+### setup for dumb terminal, your mileage may vary
+$ob->stty_echo(1);
+$ob->stty_icrnl(1);
+$ob->stty_onlcr(1);
+$ob->stty_opost(1);
+###
+
+my $intr = stty_char($ob->stty_intr);
+my $quit = stty_char($ob->stty_quit);
+my $eof = stty_char($ob->stty_eof);
+my $eol = stty_char($ob->stty_eol);
+my $erase = stty_char($ob->stty_erase);
+my $kill = stty_char($ob->stty_kill);
 my $echo = ($ob->stty_echo ? "" : "-")."echo";
 my $echoe = ($ob->stty_echoe ? "" : "-")."echoe";
 my $echok = ($ob->stty_echok ? "" : "-")."echok";
@@ -97,6 +115,7 @@ my $ocrnl = ($ob->stty_ocrnl ? "" : "-")."ocrnl";
 my $igncr = ($ob->stty_igncr ? "" : "-")."igncr";
 my $inlcr = ($ob->stty_inlcr ? "" : "-")."inlcr";
 my $onlcr = ($ob->stty_onlcr ? "" : "-")."onlcr";
+my $opost = ($ob->stty_opost ? "" : "-")."opost";
 my $isig = $ob->stty_isig ? "enabled" : "disabled";
 my $icanon = $ob->stty_icanon ? "enabled" : "disabled";
 
@@ -107,24 +126,25 @@ my $head	= "\r\n\r\n++++++++++++++++++++++++++++++++++++++++++\r\n";
 my $e="\r\n....Bye\r\n";
 
 my $tock	= <<TOCK_END;
-\rSimple Serial Terminal with lookfor\r
+Simple Serial Terminal with lookfor
 
-Terminal CONTROL Keys Supported:\r
-    quit = $quit;  intr = $intr;  $isig\r
-    erase = $erase;  kill = $kill;  $icanon\r
-    eol = $eol;  eof = $eof;\r
+Terminal CONTROL Keys Supported:
+    quit = $quit;  intr = $intr;  $isig
+    erase = $erase;  kill = $kill;  $icanon
+    eol = $eol;  eof = $eof;
 
-Terminal FUNCTIONS Supported:\r
-    $istrip  $igncr  $echoke  $echoctl\r
-    $echo  $echoe  $echok  $echonl\r
+Terminal FUNCTIONS Supported:
+    $istrip  $igncr  $echoke  $echoctl
+    $echo  $echoe  $echok  $echonl
 
-Terminal Character Conversions Supported:\r
-    $icrnl  $inlcr  $ocrnl  $onlcr\r
-\r
+Terminal Character Conversions Supported:
+    $icrnl  $inlcr  $ocrnl  $onlcr  $opost
+
 TOCK_END
 #
 
 print $head, $tock;
+$tock =~ s/\n/\r\n/ogs if ($ob->stty_opost && $ob->stty_onlcr);
 $pass=$ob->write($head);
 $pass=$ob->write($tock);
 
@@ -138,62 +158,87 @@ my $prompt1 = "Type $match1 or $match2 or <ENTER> exactly to continue\r\n";
 $pass=$ob->write($prompt1) if ($ob->stty_echo);
 
 $ob->are_match($match1, $match2, "\n");
-$out = waitfor (30);
-if (defined $out) {
-    print "\r\nout found: $out\n";
+($before, $did_match) = waitfor (30);
+my ($found, $end, $patt, $instead) = $ob->lastlook;
+if (defined $before) {
+    if ("\n" eq $did_match) { $did_match = "newline"; }
+    print "\ngot: $before...followed by: $did_match...\n";
 }
 else {
     print "\r\nAborted or Timed Out\r\n";
+    print "actually received: $instead...\n";
 }
 
 print $head;
 $pass=$ob->write($head);
 
 $ob->lookclear;
-$out = nextline (60, "\nPROMPT:");
-if (defined $out) {
-    print "\nPROMPT:$out...";
+($before, $did_match) = nextline (60, "\nPROMPT:");
+if (defined $before) {
+    if ("\n" eq $did_match) { $did_match = "newline"; }
+    print "\ngot: $before...followed by: $did_match...\n";
 }
 else {
+    ($found, $end, $patt, $instead) = $ob->lastlook;
     print "\r\nAborted or Timed Out\r\n";
+    print "actually received: $instead...\n";
 }
 
 sleep 2;
-$out = nextline (60, "\nPROMPT2:");
-if (defined $out) {
-    print "\nPROMPT2:$out...";
+($before, $did_match) = nextline (60, "\nPROMPT2:");
+if (defined $before) {
+    if ("\n" eq $did_match) { $did_match = "newline"; }
+    print "\ngot2: $before...followed by: $did_match...\n";
 }
 else {
+    ($found, $end, $patt, $instead) = $ob->lastlook;
     print "\r\nAborted or Timed Out\r\n";
+    print "actually received: $instead...\n";
 }
 
 sleep 2;
 @wanted = ("BYE");
 $ob->are_match(@wanted);
-$out = nextline (60, "\ntype 'BYE' to quit:");
-if (defined $out) {
-    my ($found, $end) = $ob->lastlook;
-    print "\nout: $out...followed by: $found...";
+($before, $did_match) = nextline (60, "\ntype 'BYE' to quit:");
+if (defined $before) {
+    print "\ngot3: $before...followed by: $did_match...\n";
 }
 else {
+    ($found, $end, $patt, $instead) = $ob->lastlook;
     print "\r\nAborted or Timed Out\r\n";
+    print "actually received: $instead...\n";
 }
+
 ### example from the docs
 
-$ob->are_match("pattern", "\n");	# possible end strings
-$ob->lookclear;				# empty buffer
-$ob->write("\r\nFeed Me:");		# initial prompt
-$ob->is_prompt("More Food:");		# new prompt after "kill" char
+  $ob->are_match("text", "\n");	# possible end strings
+  $ob->lookclear;		# empty buffers
+  $ob->write("\r\nFeed Me:");	# initial prompt
+  $ob->is_prompt("More Food:");	# new prompt after "kill" char
 
-my $gotit = "";
-until ("" ne $gotit) {
-    $gotit = $ob->lookfor;		# poll until data ready
-    die "Aborted without match\n" unless (defined $gotit);
-    sleep 1;				# polling sample time
-}
-printf "\ngotit = %s...", $gotit;		# input before the match
-my ($match, $after) = $ob->lastlook;		# match and input after
-printf "\nlastlook-match = %s  -after = %s...\n", $match, $after;
+  my $gotit = "";
+  $match1 = "";
+  until ("" ne $gotit) {
+      $gotit = $ob->lookfor;	# poll until data ready
+      die "Aborted without match\n" unless (defined $gotit);
+      last if ($gotit);
+      $match1 = $ob->matchclear;   # match is first thing received
+      last if ($match1);
+      sleep 1;				# polling sample time
+  }
+
+  printf "gotit = %s...\n", $gotit;		# input BEFORE the match
+  ($found, $end, $patt, $instead) = $ob->lastlook;
+      # input that MATCHED, input AFTER the match, PATTERN that matched
+      # input received INSTEAD when timeout without match
+
+  if ($match1) {
+      $found = $match1;
+  }
+  print "lastlook-match = $found...\n" if ($found);
+  print "lastlook-after = $end...\n" if ($end);
+  print "lastlook-pattern = $patt...\n" if ($patt);
+  print "lastlook-instead = $instead...\n" if ($instead);
 
 ###
 print $e;

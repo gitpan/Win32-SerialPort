@@ -117,3 +117,23 @@ Revision history for Perl extension Win32API::SerialPort.
 	- Delete never-used "dosmode" constructor
 	- add demo6.plx and t/test6.t for tied FileHandles
 
+0.15  Sun May 09 16:25:40 1999
+	- First production release.
+	- Add $RBUF_Size and internal_buffer().
+	- Add $quiet option to new.
+	- Correct bugs in handshake off control masks.
+	- Rename "eof" and "kill" to s_eof and s_kill to reduce confusion with
+	  Perl builtin functions.
+	- Add stty method and opost parameter.
+	- Default stty_xxx setup for raw port rather than dumb terminal.
+	- Add compiled regex support for are_match.
+	- Add streamline, lastline, linesize, matchclear.
+	- Add $instead to lastlook.
+	- Recode lookfor to improve efficiency.
+	- Improve error handling on write timeout.
+	- Add cntl_char and argv_char subs to support stty.
+	- Add test suite port option to Makefile.PL
+	- Extensive test suite additions
+	- small changes in demo4.plx amd demo6.plx, large ones in demo5.plx
+	- new demo7.plx, demo8.plx, stty.plx
+

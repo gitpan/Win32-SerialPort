@@ -4,7 +4,7 @@ use lib './lib','../lib'; # can run from here or distribution base
 
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test?.t'
-# `perl test?.t time' pauses `time' seconds (1..5) between pages
+# `perl test?.t time' pauses `time' seconds (0..5) between pages
 
 ######################### We start with some black magic to print on failure.
 
@@ -40,8 +40,8 @@ sub is_ok {
 my $naptime = 0;	# pause between output pages
 if (@ARGV) {
     $naptime = shift @ARGV;
-    unless ($naptime =~ /^[1-5]$/) {
-	die "Usage: perl test?.t [ page_delay (1..5) ]";
+    unless ($naptime =~ /^[0-5]$/) {
+	die "Usage: perl test?.t [ page_delay (0..5) ]";
     }
 }
 
