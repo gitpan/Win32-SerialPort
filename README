@@ -1,0 +1,186 @@
+Win32::SerialPort and Win32API::CommPort
+VERSION=0.13, 28 November 1998
+
+Hello Beta testers:
+
+The current version of the module has been designed for testing using
+the ActiveState and Core (GS 5.004_02) ports of perl for Win32 without
+requiring a compiler or using XS. In every case, compatibility has been
+selected over performance. Since everything is (sometimes convoluted but
+still pure) perl, you can fix flaws and change limits if required. But
+please file a bug report if you do.
+
+This is the third public beta. Most features are now implemented. I
+suspect there are still bugs - but I only know of one: "is_parity_enable"
+sometimes fails on NT (test4.t #81). I have not been able to duplicate this
+bug on my system. If you do get this test to fail, please let me know if
+you can isolate it to some line in the module source code. If you see any
+place where the code does not match the documentation, consider it a bug
+and please report it.
+
+COMPATIBILITY NOTES:
+
+1. This distribution improves "Install.PL" which now puts both the
+   modules and html documents into the appropriate locations in the
+   perl directory structure for perl versions 5.004 and above. Existing
+   scripts which relied on a standalone directory instead of the
+   documented Namespaces will need to be changed. 
+
+2. Users of ActiveState Build 3xx can not use "Install.PL". But Version
+   0.13 adds automatic test suite support to "Makefile.PL" (without the
+   summary report from Test::Harness, however, that you get from 5.004+).
+   Results will be written to "test.txt".
+
+Please tell me what doesn't work, what you dislike (or like), and what
+should be added (or deleted). One very visible change from the alpha is
+the division into two modules:
+
+1. Win32::SerialPort is the high-level user interface. It inherits from
+   CommPort.
+
+2. Win32API::CommPort is the raw API calls and other internal details
+   that most users won't need to know much about. Some exported names
+   have changed in beta 2 - but this change should not impact any users.
+
+These modules use Aldo Calpini's Win32::API module extensively. It is
+available at:
+
+    http://www.divinf.it/dada/perl/Win32API-0_011.zip
+
+for AS build 3xx and GS 5.004_02. For AS build 5xx, it is available as
+the package Win32-API using PPM on the ActiveState repository.
+Get it, install it, and test it BEFORE trying Win32API::SerialPort. The
+"-w" complaints (xxx used only once) under AS 3xx are normal.
+
+See the NOTES and KNOWN LIMITATIONS in the SerialPort documentation. The
+".pod" is embedded in the ".pm". The comments on "-w" and "use strict"
+are especially relevant when you start calling this module from your own
+code. This module has been tested on Win95 with AS Builds 315 and 500 and
+the GS binary 5.004_02. Thanks to Ken White for testing on NT. Also thanks
+to the others who have contributed comments and suggestions.
+
+FILES:
+    Changes		- for history lovers
+    Makefile.PL		- incomplete, but still the "starting point"
+    MANIFEST		- file list
+    README.txt		- this file (CRLF)
+    README    		- same file with CPAN-friendly name (LF only)
+    demo1.plx		- talks to a "really dumb" terminal
+    demo2.plx		- "poor man's" readline and chat
+    demo3.plx		- looks like a setup menu - but only looks :-(
+    demo4.plx		- simplest setup: "new", "required param", "restart"
+    demo5.plx		- "waitfor" and "nextline" using lookfor
+    Install.PL		- install using MakeMaker tools (5.004 and above)
+    Inst_3xx.PL		- install for perl 5.003
+    options.plx		- post-install test that prints available options
+
+    lib				- install directory
+    lib/Win32			- install directory
+    lib/Win32/SerialPort.pm	- the reason you're reading this
+    lib/Win32API		- install directory
+    lib/Win32API/CommPort.pm	- the raw API calls and other internals
+
+    html			- install directory
+    html/Win32			- install directory
+    html/Win32/SerialPort.html	- documentation
+    html/Win32API		- install directory
+    html/Win32API/CommPort.html	- documentation
+
+    Altport.pm		- stub for inheritance test
+    t			- test directory
+    t/test1.t		- RUN ME FIRST, tests and creates configuration
+    t/test2.t		- tests restarting_a_configuration and timeouts
+    t/test3.t		- Inheritance and export version of test1.t
+    t/test4.t		- Inheritance version of test2.t and "restart"
+    t/test5.t		- tests to optional exports from CommPort
+
+This is a preliminary production release. While I will try to
+maintain backwards compatibility from this point forward, I can't
+guarantee it.
+
+Run 'perl Makefile.PL' first with nothing connected to "COM1". This
+will run the tests automaticallyi. With 5.004+, the Benchmark routines
+are used to generate reports. The test suite covers most of the module
+methods and leaves the port set for 9600 baud, 1 stop, 8 data, no parity,
+no handshaking, and other defaults. At various points in the testing, it
+expects unconnected CTS and DTR lines. The final configuration is saved
+as COM1_test.cfg in this directory.
+
+Tests may also be run individually by typing:
+	'perl test?.t Page_Delay'
+With no delay, the tests execute too rapidly to follow from an MS-DOS
+command line. Delay may be set from 1 to 5 seconds.
+
+All tests are expected to pass - I would be very interested in hearing
+about failures ("not ok"). These tests should be run from a command
+line (DOS box).
+
+INSTALLATION:
+1. For perl versions 5.004 and above, run 'perl Install.PL". That's it!
+
+2. For ActiveState build 3xx, run 'perl Inst_3xx.PL'. Since html docs
+   were not installed by default on build 3xx, I don't install them.
+   You can manually copy them from the html subdirectory if you want.
+
+3. Run 'perl options.plx'. It should run without errors.
+
+DEMO PROGRAMS:
+Connect a dumb terminal (or a PC that acts like one) to COM1 and setup
+the equivalent configuration. Starting demo1.plx should print a three
+line message on both the terminal and the Win32 command line. The
+terminal keyboard (only) now accepts characters which it prints to both
+screens until a CONTROL-Z is typed. Also included is demo2.plx - a truly
+minimal chat program. Bi-directional communication without an event loop,
+sockets, pipes (or much utility ;-) This one uses CAPITAL-Q from the
+active keyboard to quit since <STDIN> doesn't like CONTROL-Z. And each
+command shell acts a little differently (Cygnus "bash", COMMAND.COM).
+Try running the terminal at 4800 baud to get errors (or 300 to get
+"breaks").
+
+AltPort.pm and test3.t implement the "basic Inheritance test" discussed
+in perltoot and other documentation. It also imports the :STAT constants.
+It's otherwise only slightly modified from test1.t (you'll get a different
+"alias" if you run test2.t or demo3.plx after test3.t). There are some
+subtle functional changes between test2.t and test4.t. But test4.t also
+calls CommPort methods directly rather than through SerialPort and adds
+tests for lookfor and stty_xxx methods.
+
+You can read (most of the important) settings with demo3.plx. If you
+give it a (valid) configuration file on the command line, it will open
+the port with those parameters (and "initialized" set - so you can test
+simple changes: see the parity example at the end of demo3.plx).
+
+Run options.plx to see the available choices for various parameters
+along with the current values. If you have trouble, I will probably
+ask you to save the output of options.plx in a file and send it to me.
+You can specify a port name for options.plx on the command line
+(e.g. 'perl options.plx COM2').
+
+Demo4.plx is a "minimum" script showing just the basics needed to get
+started.
+
+Demo5.plx demonstrates various uses of the lookfor routine including
+setups for "waitfor" and a primative "readline". Try them out. The
+default "stty" settings work with a VT-100 style terminal. You may
+have to set the options by hand. Use any editor. Let me know if the
+descriptions in the documentation are useable. And if any more options
+are necessary.
+
+Please tell me what does and what doesn't work. Which systems "croak".
+You can share this with anyone. But it's still beta code. Don't trust it
+for anything important without complete testing. The feedback I have
+received, and my own testing, indicate the code is already pretty robust.
+And watch for frequent updates at:
+
+%%%% http://members.aol.com/Bbirthisel/alpha.html
+
+or CPAN under authors/id/B/BB/BBIRTH or
+              Win32::SerialPort and Win32API::CommPort
+
+Thanks,
+
+-bill
+
+Copyright (C) 1998, Bill Birthisel. All rights reserved. This module is
+free software; you can redistribute it and/or modify it under the same
+terms as Perl itself.

@@ -1,0 +1,104 @@
+Revision history for Perl extension Win32API::SerialPort.
+
+0.01  Tue Apr 14 12:01:47 1998
+	- original version; created by h2xs 1.18
+	- command: h2xs -X -n SerialPort
+
+0.02  Thu Apr 16 15:53:30 1998
+	- extensive edits to pod section
+	- consolidate pre-existing code fragments
+	- post documentation for comments
+
+0.03  Sun Apr 26 22:24:47 1998
+	- add test1.pl
+	- extensive bug fixes while developing tests
+
+0.04  Mon May 25 15:14:30 1998
+	- significant additions to test1.pl
+	- add test2.pl, demo1.pl, demo2.pl, README.txt
+	- first version with read and write functions
+	- first public alpha
+
+0.05  Sun May 31 21:26:02 1998
+	- rewrite tests using "is_ok", "is_bad", "is_zero" subroutines
+	- abort "start" on parameter validation failure
+	- rename tests to ".t" and demos to ".plx"
+	- add fourth return value to status and reset_error.
+	- Add built-in error messages and use in demo?.plx
+	- add read_bg, write_bg, read_done, write_done (background I/O)
+
+0.06  Fri Jun 05 17:38:20 1998
+	- make sure baudrate and databits interpreted as integers
+	- Add AltPort.pm and test3.t for Inheritance testing
+	- Add demo3.plx as setup example
+	- Clone README.txt to preferred CPAN name
+	- Add Makefile.PL (as stub) for CPAN
+	- Add parity_enable. Other DCB bits not implemented yet
+
+0.07  Tue Jun 16 22:43:20 1998
+	- Add test4.t for Inheritance testing
+	- Makefile.PL runs Test::Harness on 5.004 (GS)
+	- Export :COMM constants on request
+	- Fixes for status on NT (differs from Win95) - add BM_AllBits
+	- Purge now clears read/write busy
+	- Save error_msg/user_msg in configuration file
+
+0.08  Wed Jun 17 21:56:11 1998
+	- Add demo4.plx
+	- Add description of "required" parameters
+	- Fix bug that "required" all the timing and buffer parameters
+	- Small fixes to test?.t for "-w" warnings
+
+0.09  Fri Aug 21 xx:xx:xx 1998
+	- First pre-beta, no general distribution
+	- Rename :COMM exports to :STAT
+	- Make "handshake" recommended rather than required
+	- Add restart
+	- Add demo5.plx
+	- Split into Win32:SerialPort(user) and Win32API::CommPort(raw)
+
+0.10  Sat Aug 29 23:18:50 1998
+	- First public beta
+	- Add demo6.plx and test5.t
+	- Add :RAW :COMPROP :PARAM :DCB :ALL exports to CommPort.pm
+	- Add $ResetEvent to CommPort.pm
+	- Fix a number of timing bugs
+
+0.11  Mon Sep 14 23:40:00 1998
+	- Add current baud to ok list
+	- add error messages
+	- allow set_write_buf(0)
+	- limited release to test TPJ examples and bug fixes
+
+0.12  Sun Nov 08 23:40:00 1998
+	- MAJOR UPDATE - Second public beta
+	- Modify CommPort.pm to export subroutine wrappers instead of
+	  API objects under tag "RAW:". Many related changes in test5.t
+	- Add perl version test to Makefile.PL
+	- Add Install.PL and blib subdirectory tree (5.004 and above)
+	- Add options.plx to aid in debugging after installation
+	- Update MANIFEST, README and documentation
+	- Add error messages for failed "save" and "write_settings" 
+	- Fix bugs in range checking for "baudrate" and "buffers"
+	- Rename API objects to "$_object"
+	- Delete $_GetLocalError
+	- Use "my $dcb" instead of $self->{"_DCB"} in CommPort.pm
+	- Move test suite files to "t" subirectory (5.004 and above)
+	- Add "use blib" to the test suite
+	- Revise demo*.plx to use proper Namespaces
+	- Create "Build_3xx" subdirectory for non-Makamaker test suite
+	- Add manual install instructions for ActiveState build 3xx
+
+0.13  Sat Nov 28 19:35:05 1998
+	- Third public beta
+	- Add lookfor, lookclear, lastlook, are_match, input-loopback,
+	  is_prompt, and stty-like functions (MAJOR ENHANCEMENT)
+	- Consolidate demo5.plx and demo6.plx using lookfor et. al.
+	- Rewrite Makefile.PL and Install.PL to eliminate need for
+	  "Build_3xx" subdirectory, add test suite support for Build_3xx,
+	  and "use lib" instead of "use blib" (which CPAN reserves for
+	  binary distributions)
+	- Add html install for 5.004 and above
+	- All t/test* files modified - test4.plx extensively (testing
+	  new functions)
+
