@@ -6,7 +6,7 @@
 ####        'VERSION_FROM' => 'SerialPort.pm', # finds $VERSION
 ####    );
 
-my $version = "0.18";
+my $version = "0.19";
 my $file = "COM1";
 if (@ARGV) {
     $file = shift @ARGV;

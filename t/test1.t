@@ -14,7 +14,7 @@ require 5.003;
 
 BEGIN { $| = 1; print "1..275\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use Win32::SerialPort 0.17;
+use Win32::SerialPort 0.19;
 require "DefaultPort.pm";
 $loaded = 1;
 print "ok 1\n";
@@ -133,46 +133,43 @@ foreach $e (@necessary_param) { $required_param{$e} = 0; }
 
 ## 2 - 5 SerialPort Global variable ($Babble);
 
-is_bad(scalar Win32::SerialPort->debug);	# 2: start out false
+is_bad(Win32::SerialPort::debug());		# 2: start out false
 
-is_ok(scalar Win32::SerialPort->debug(1));	# 3: set it
+is_ok(Win32::SerialPort::debug(1));		# 3: set it
 
-is_bad(scalar Win32::SerialPort->debug(2));	# 4: invalid binary=false
+is_bad(Win32::SerialPort::debug(2));		# 4: invalid binary=false
 
 # 5: yes_true subroutine, no need to SHOUT if it works
 
-$e="not ok $tc:";
-unless (Win32::SerialPort->debug("T"))   { print "$e \"T\"\n"; $fault++; }
-if     (Win32::SerialPort->debug("F"))   { print "$e \"F\"\n"; $fault++; }
+$e="yes_true failed:";
+unless (Win32::SerialPort::debug("T"))   { print "$e \"T\"\n"; $fault++; }
+if     (Win32::SerialPort::debug("F"))   { print "$e \"F\"\n"; $fault++; }
 
 no strict 'subs';
-unless (Win32::SerialPort->debug(T))     { print "$e T\n";     $fault++; }
-if     (Win32::SerialPort->debug(F))     { print "$e F\n";     $fault++; }
-unless (Win32::SerialPort->debug(Y))     { print "$e Y\n";     $fault++; }
-if     (Win32::SerialPort->debug(N))     { print "$e N\n";     $fault++; }
-unless (Win32::SerialPort->debug(ON))    { print "$e ON\n";    $fault++; }
-if     (Win32::SerialPort->debug(OFF))   { print "$e OFF\n";   $fault++; }
-unless (Win32::SerialPort->debug(TRUE))  { print "$e TRUE\n";  $fault++; }
-if     (Win32::SerialPort->debug(FALSE)) { print "$e FALSE\n"; $fault++; }
-unless (Win32::SerialPort->debug(Yes))   { print "$e Yes\n";   $fault++; }
-if     (Win32::SerialPort->debug(No))    { print "$e No\n";    $fault++; }
-unless (Win32::SerialPort->debug("yes")) { print "$e \"yes\"\n"; $fault++; }
-if     (Win32::SerialPort->debug("f"))   { print "$e \"f\"\n";   $fault++; }
+unless (Win32::SerialPort::debug(T))     { print "$e T\n";     $fault++; }
+if     (Win32::SerialPort::debug(F))     { print "$e F\n";     $fault++; }
+unless (Win32::SerialPort::debug(Y))     { print "$e Y\n";     $fault++; }
+if     (Win32::SerialPort::debug(N))     { print "$e N\n";     $fault++; }
+unless (Win32::SerialPort::debug(ON))    { print "$e ON\n";    $fault++; }
+if     (Win32::SerialPort::debug(OFF))   { print "$e OFF\n";   $fault++; }
+unless (Win32::SerialPort::debug(TRUE))  { print "$e TRUE\n";  $fault++; }
+if     (Win32::SerialPort::debug(FALSE)) { print "$e FALSE\n"; $fault++; }
+unless (Win32::SerialPort::debug(Yes))   { print "$e Yes\n";   $fault++; }
+if     (Win32::SerialPort::debug(No))    { print "$e No\n";    $fault++; }
+unless (Win32::SerialPort::debug("yes")) { print "$e \"yes\"\n"; $fault++; }
+if     (Win32::SerialPort::debug("f"))   { print "$e \"f\"\n";   $fault++; }
 use strict 'subs';
 
-print "ok $tc\n" unless ($fault);
-$tc++;
+is_zero($fault);				# 5
 
-@opts = Win32::SerialPort->debug;		# 6: binary_opt array
-is_ok(test_bin_list(@opts));
-
-# 7: Constructor
+# 6: Constructor
 
 unless (is_ok ($ob = Win32::SerialPort->new ($file))) {
-    printf "could not open port $file\n";
-    exit 1;
+    die "could not open port $file\n";		# 6
     # next test would die at runtime without $ob
 }
+
+is_bad($ob->debug);				# 7 end up false
 
 #### 8 - 99: Check Port Capabilities 
 

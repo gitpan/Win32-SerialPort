@@ -14,7 +14,7 @@ require 5.003;
 
 BEGIN { $| = 1; print "1..244\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use AltPort qw( :STAT :PARAM 0.17 );		# check inheritance & export
+use AltPort qw( :STAT :PARAM 0.19 );		# check inheritance & export
 require "DefaultPort.pm";
 $loaded = 1;
 print "ok 1\n";
@@ -137,46 +137,21 @@ my @necessary_param = AltPort->set_test_mode_active(1);
 unlink $cfgfile;
 foreach $e (@necessary_param) { $required_param{$e} = 0; }
 
-## 2 - 5 SerialPort Global variable ($Babble);
-
-is_bad(scalar AltPort->debug);			# 3: start out false
-
-is_ok(scalar AltPort->debug(1));		# 4: set it
-
-# 5: yes_true subroutine, no need to SHOUT if it works
-
-$e="not ok $tc:";
-unless (AltPort->debug("T"))   { print "$e \"T\"\n"; $fault++; }
-if     (AltPort->debug("F"))   { print "$e \"F\"\n"; $fault++; }
-
-no strict 'subs';
-unless (AltPort->debug(T))     { print "$e T\n";     $fault++; }
-if     (AltPort->debug(F))     { print "$e F\n";     $fault++; }
-unless (AltPort->debug(Y))     { print "$e Y\n";     $fault++; }
-if     (AltPort->debug(N))     { print "$e N\n";     $fault++; }
-unless (AltPort->debug(ON))    { print "$e ON\n";    $fault++; }
-if     (AltPort->debug(OFF))   { print "$e OFF\n";   $fault++; }
-unless (AltPort->debug(TRUE))  { print "$e TRUE\n";  $fault++; }
-if     (AltPort->debug(FALSE)) { print "$e FALSE\n"; $fault++; }
-unless (AltPort->debug(Yes))   { print "$e Yes\n";   $fault++; }
-if     (AltPort->debug(No))    { print "$e No\n";    $fault++; }
-unless (AltPort->debug("yes")) { print "$e \"yes\"\n"; $fault++; }
-if     (AltPort->debug("f"))   { print "$e \"f\"\n";   $fault++; }
-use strict 'subs';
-
-print "ok $tc\n" unless ($fault);
-$tc++;
-
-@opts = AltPort->debug;		# 6: binary_opt array
-is_ok(test_bin_list(@opts));
-
-# 7: Constructor
+# 3: Constructor
 
 unless (is_ok ($ob = AltPort->new ($file))) {
-    printf "could not open port $file\n";
-    exit 1;
+    die "could not open port $file\n";		# 3
     # next test would die at runtime without $ob
 }
+
+is_zero($ob->debug);				# 4
+
+is_ok($ob->debug(1));				# 5
+
+is_zero($ob->debug(0));				# 6
+
+is_zero($ob->debug);				# 7
+
 
 #### 8 - 99: Check Port Capabilities 
 
@@ -597,8 +572,8 @@ is_ok(scalar $ob->dtr_active(0));		# 181
 is_ok(scalar $ob->rts_active(0));		# 182
 is_ok(scalar $ob->break_active(0));		# 183
 is_zero($ob->is_modemlines);			# 184
-is_ok(scalar $ob->debug_comm(1));		# 185
-is_zero(scalar $ob->debug_comm(0));		# 186
+is_ok($ob->debug_comm(1));			# 185
+is_zero($ob->debug_comm(0));			# 186
 
 is_ok(1 == $ob->close);				# 187
 undef $ob;

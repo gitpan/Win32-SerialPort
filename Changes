@@ -159,3 +159,9 @@ Revision history for Perl extension Win32API::SerialPort.
 	- correct misnamed output_rts to output_cts
 	- changes in all test programs, especially t/test2.t and t/test4.t 
 
+0.19  Thu November 4 20:26:12 1999
+	- fixed problem setting $Babble and $Verbose via debug & debug_comm
+	- deleted useless array-context return from debug & debug_comm
+	- updates to test1.t, test3.t, and new demo9.plx
+	- move demos to eg directory
+

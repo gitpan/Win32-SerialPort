@@ -1,5 +1,5 @@
 Win32::SerialPort and Win32API::CommPort
-VERSION=0.17, 13 August 1999
+VERSION=0.19, 4 November 1999
 
 Hello Serial Port users:
 
@@ -16,7 +16,7 @@ report if you do. I have tested with the ActiveState (3xx and 5xx) and
 Core (GS 5.004_02) distributions. But these modules should work on any
 Win32 version that supports Aldo Calpini's Win32::API.
 
-This is the third production release. All planned features are now
+This is the fifth production release. All planned features are now
 implemented. A few are still experimental - see the documentation.
 I suspect there are still bugs - but I only know of one: "is_parity_enable"
 sometimes fails on NT (test4.t #86). I have not been able to duplicate this
@@ -104,17 +104,18 @@ FILES:
     MANIFEST		- file list
     README.txt		- this file (CRLF)
     README    		- same file with CPAN-friendly name (LF only)
-    any_os.plx		- cross-platform use and init
-    demo1.plx		- talks to a "really dumb" terminal
-    demo2.plx		- "poor man's" readline and chat
-    demo3.plx		- looks like a setup menu - but only looks :-(
-    demo4.plx		- simplest setup: "new", "required param", "restart"
-    demo5.plx		- "waitfor" and "nextline" using lookfor
-    demo6.plx		- basic tied FileHandle operations, record separators
-    demo7.plx		- a Perl/Tk based terminal, event loop and callbacks
-    demo8.plx		- command line terminal emulator with Term::Readkey
-    options.plx		- post-install test that prints available options
-    stty.plx		- first try at Unix lookalike
+    eg/any_os.plx	- cross-platform use and init
+    eg/demo1.plx	- talks to a "really dumb" terminal
+    eg/demo2.plx	- "poor man's" readline and chat
+    eg/demo3.plx	- looks like a setup menu - but only looks :-(
+    eg/demo4.plx	- simplest setup: "new", "required param", "restart"
+    eg/demo5.plx	- "waitfor" and "nextline" using lookfor
+    eg/demo6.plx	- basic tied FileHandle operations, record separators
+    eg/demo7.plx	- a Perl/Tk based terminal, event loop and callbacks
+    eg/demo8.plx	- command line terminal emulator with Term::Readkey
+    eg/demo9.plx	- using debug on a close()
+    eg/options.plx	- post-install test that prints available options
+    eg/stty.plx		- first try at Unix lookalike
 
     lib				- install directory
     lib/Win32			- install directory
