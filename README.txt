@@ -1,5 +1,5 @@
 Win32::SerialPort and Win32API::CommPort
-VERSION=0.17, 13 August 1999
+VERSION=0.18, 8 September 1999
 
 Hello Serial Port users:
 
@@ -16,7 +16,7 @@ report if you do. I have tested with the ActiveState (3xx and 5xx) and
 Core (GS 5.004_02) distributions. But these modules should work on any
 Win32 version that supports Aldo Calpini's Win32::API.
 
-This is the third production release. All planned features are now
+This is the fourth production release. All planned features are now
 implemented. A few are still experimental - see the documentation.
 I suspect there are still bugs - but I only know of one: "is_parity_enable"
 sometimes fails on NT (test4.t #86). I have not been able to duplicate this
@@ -27,14 +27,31 @@ and please report it. Except for those items highlighted as "experimental"
 in the documentation (tied FileHandles, "lookfor" details, and stty
 emulation), the modules have been very stable since Nov 8, 1998 (0.12).
 
+INSTALLATION:
+
+Version 0.18 adds a more Un*x-like installation for ALL Perl versions.
+
+   perl Makefile.PL [optional PORT]
+   perl test.pl
+   perl install.pl
+
+The Makefile.PL creates the test.pl, install.pl, and t/DefaultPort.pm
+files. With no port specified, COM1 is used.
+
+Since ActiveState build 3xx did not install html docs by default, I don't
+install them.  You can manually copy them from the html subdirectory if
+you want.
+
+'perl options.plx' should run without errors after installing.
+
 UPGRADE GOTCHAS:
 
-1. The test programs and many of the demo programs have added features
+1. The test programs and some of the demo programs have added features
    since the last beta release. The new ones won't work on earlier
-   versions (0.14 and below).
+   versions (0.17 and below).
 
 2. The configuration file used by start, restart and tie must be
-   regenerated (by save) for Version 0.15 and above. Sorry about that.
+   regenerated (by save) for Version 0.18 and above. Sorry about that.
 
 3. The defaults for the stty_xxx parameters have been changed to no
    processing (raw data). In earlier versions, the default matched
@@ -48,34 +65,17 @@ UPGRADE GOTCHAS:
 5. In many cases, streamline is a better choice than lookfor when
    receiving large quantities of data.
 
-COMPATIBILITY NOTES:
+COMPATIBILITY NOTES: (changes since 0.15)
 
-1. Users of ActiveState Build 3xx must use "Inst_3xx.PL" instead of
-   "Install.PL". Version 0.14 improves the automatic test suite support
-   in "Makefile.PL" (so it resembles Test::Harness without the summary
-   report). Results will be written to "test.txt".
-
-2. The Tied FileHandle support works fully on 5.005, mostly on 5.004,
+1. The Tied FileHandle support works fully on 5.005, mostly on 5.004,
    and essentially NOT on 5.003. This is due to the level of support
    in the underlying Perl - not to the module implementation.
 
-3. The internals of "lookfor" have been extensively changed. Most of
-   the simple demos did not break - but users should verify that
-   existing applications which use this feature act the same. If any
-   user took advantage of the (previously undocumented) support for
-   regular expressions, they will have to revise their code to the
-   new (less ambiguous) syntax borrowed from Expect.pm. Timing and
-   efficiency should be improved. Most changes were in Version 0.15.
-
-4. Version 0.16 eliminated the "dummy (0, 1) list" returned by most
+2. Version 0.16 eliminated the "dummy (0, 1) list" returned by most
    of the binary methods in case they were called in list context.
    I do not think that feature was used outside the test suite.
 
-5. The documentation on read_interval and read_const_time has been
-   improved based on testing. The functions have not changed - only
-   the description of how they work (and the new recommendations).
-
-6. A "syswrite" from a tied FileHandle now checks stty_opost and
+3. A "syswrite" from a tied FileHandle now checks stty_opost and
    performs the output conversions. You can still use "write" to
    generate "raw" output even with stty_opost==1.
 
@@ -104,6 +104,7 @@ FILES:
     MANIFEST		- file list
     README.txt		- this file (CRLF)
     README    		- same file with CPAN-friendly name (LF only)
+    any_os.plx		- cross-platform use and init
     demo1.plx		- talks to a "really dumb" terminal
     demo2.plx		- "poor man's" readline and chat
     demo3.plx		- looks like a setup menu - but only looks :-(
@@ -112,8 +113,6 @@ FILES:
     demo6.plx		- basic tied FileHandle operations, record separators
     demo7.plx		- a Perl/Tk based terminal, event loop and callbacks
     demo8.plx		- command line terminal emulator with Term::Readkey
-    Install.PL		- install using MakeMaker tools (5.004 and above)
-    Inst_3xx.PL		- install for perl 5.003
     options.plx		- post-install test that prints available options
     stty.plx		- first try at Unix lookalike
 
@@ -143,15 +142,13 @@ This is a genuine production release. You can complain if I don't
 maintain compatibility from this point forward. The experimental
 items might change a bit - but I'll try to avoid breaking any code.
 
-PRE-INSTALL and TEST:
+TEST:
 
-Run 'perl Makefile.PL' first with nothing connected to "COM1". This
-will run the tests automatically. You can specify a diferent port to
-test with 'perl Makefile.PL PORT'. With 5.004+, the Benchmark routines
-are used to generate reports. The test suite covers most of the module
-methods and leaves the port set for 9600 baud, 1 stop, 8 data, no parity,
-no handshaking, and other defaults. At various points in the testing, it
-expects unconnected CTS and DTR lines. The final configuration is saved
+With 5.004+, the Benchmark routines are used to generate reports.
+The test suite covers most of the module methods and leaves the port
+set for 9600 baud, 1 stop, 8 data, no parity, no handshaking, and
+other defaults. At various points in the testing, it expects
+unconnected CTS and DTR lines. The final configuration is saved
 as COM1_test.cfg in this directory.
 
 Tests may also be run individually by typing:
@@ -163,16 +160,6 @@ command line. Delay may be set from 0 to 5 seconds.
 All tests are expected to pass - I would be very interested in hearing
 about failures ("not ok"). These tests should be run from a command
 line (DOS box).
-
-INSTALLATION:
-
-1. For perl versions 5.004 and above, run 'perl Install.PL". That's it!
-
-2. For ActiveState build 3xx, run 'perl Inst_3xx.PL'. Since html docs
-   were not installed by default on build 3xx, I don't install them.
-   You can manually copy them from the html subdirectory if you want.
-
-3. Run 'perl options.plx'. It should run without errors.
 
 DEMO PROGRAMS:
 
@@ -230,6 +217,8 @@ Andrej Mikus.
 Stty.plx is a wrapper around the stty method that implements a clone
 of the Unix/POSIX function of the same name. It's line noise unless
 you know Unix.
+
+Bruce Winter supplied the any_os.plx cross-platform demo.
 
 The Perl Journal #13 included an article on Controlling a Modem with
 Win32::SerialPort. Examples from the article and additional demos can be

@@ -1,6 +1,7 @@
 #! perl -w
 
-use lib './lib','../lib'; # can run from here or distribution base
+use lib '.','./t','./lib','../lib';
+# can run from here or distribution base
 require 5.003;
 
 # Before installation is performed this script should be runnable with
@@ -11,9 +12,10 @@ require 5.003;
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..138\n"; }
+BEGIN { $| = 1; print "1..145\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use Win32::SerialPort 0.14;
+use Win32::SerialPort 0.18;
+require "DefaultPort.pm";
 $loaded = 1;
 print "ok 1\n";
 
@@ -29,6 +31,9 @@ use strict;
 use Win32;
 
 my $file = "COM1";
+if ($SerialJunk::Makefile_Test_Port) {
+    $file = $SerialJunk::Makefile_Test_Port;
+}
 if (exists $ENV{Makefile_Test_Port}) {
     $file = $ENV{Makefile_Test_Port};
 }
@@ -94,33 +99,19 @@ unless (is_ok ($ob = Win32::SerialPort->start ($cfgfile))) {
 #### 3 - 24: Check Port Capabilities Match Save
 
 is_ok ($ob->xon_char == 0x11);			# 3
-
 is_ok ($ob->xoff_char == 0x13);			# 4
-
 is_ok ($ob->eof_char == 0);			# 5
-
 is_ok ($ob->event_char == 0);			# 6
-
 is_ok ($ob->error_char == 0);			# 7
-
 is_ok ($ob->baudrate == 9600);			# 8
-
 is_ok ($ob->parity eq "none");			# 9
-
 is_ok ($ob->databits == 8);			# 10
-
 is_ok ($ob->stopbits == 1);			# 11
-
 is_ok ($ob->handshake eq "none");		# 12
-
 is_ok ($ob->read_interval == 0xffffffff);	# 13
-
 is_ok ($ob->read_const_time == 0);		# 14
-
 is_ok ($ob->read_char_time == 0);		# 15
-
 is_ok ($ob->write_const_time == 200);		# 16
-
 is_ok ($ob->write_char_time == 10);		# 17
 
 ($in, $out)= $ob->buffers;
@@ -137,9 +128,7 @@ if ($naptime) {
 }
 
 is_ok ($ob->parity_enable == 0);		# 22
-
 is_ok ($ob->xoff_limit == 200);			# 23
-
 is_ok ($ob->xon_limit == 100);			# 24
 
 
@@ -222,13 +211,9 @@ print "<3000> elapsed time=$out\n";
 # 47 - 51: 2 Second Constant Write Timeout
 
 is_zero ($ob->read_char_time(0));		# 47
-
 is_ok (0xffffffff == $ob->read_interval(0xffffffff));	#48
-
 is_ok (2000 == $ob->write_const_time(2000));	# 49
-
 is_zero ($ob->write_char_time(0));		# 50
-
 is_ok ("rts" eq $ob->handshake("rts"));		# 51 ; so it blocks
 
 # 52 - 53
@@ -448,15 +433,25 @@ is_ok(1 == $ob->error_msg);			# 134
 is_zero(scalar $ob->error_msg(0));		# 135
 is_ok(1 == $ob->error_msg(1));			# 136
 
+#### 137 - 143: Application Parameter Defaults
+
+is_ok ($ob->devicetype eq 'none');		# 137
+is_ok ($ob->hostname eq 'localhost');		# 138
+is_zero ($ob->hostaddr);			# 139
+is_ok ($ob->datatype eq 'raw');			# 140
+is_ok ($ob->cfg_param_1 eq 'none');		# 141
+is_ok ($ob->cfg_param_2 eq 'none');		# 142
+is_ok ($ob->cfg_param_3 eq 'none');		# 143
+
 undef $ob;
 
-# 137 - 138: Reopen tests (unconfirmed) $ob->close via undef
+# 144 - 145: Reopen tests (unconfirmed) $ob->close via undef
 
 sleep 1;
 unless (is_ok ($ob = Win32::SerialPort->start ($cfgfile))) {
-    printf "could not reopen port from $cfgfile\n";
+    printf "could not reopen port from $cfgfile\n";	# 144
     exit 1;
     # next test would die at runtime without $ob
 }
-is_ok(1 == $ob->close);				# 138
+is_ok(1 == $ob->close);				# 145
 undef $ob;

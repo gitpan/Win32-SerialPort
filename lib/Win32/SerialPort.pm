@@ -7,7 +7,7 @@ use Carp;
 use strict;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION = '0.17';
+$VERSION = '0.18';
 
 require Exporter;
 ## require AutoLoader;
@@ -71,6 +71,13 @@ my %validate =	(
 		onlcr		=> "stty_onlcr",
 		isig		=> "stty_isig",
 		icanon		=> "stty_icanon",
+		DVTYPE		=> "devicetype",
+		HNAME		=> "hostname",
+		HADDR		=> "hostaddr",
+		DATYPE		=> "datatype",
+		CFG_1		=> "cfg_param_1",
+		CFG_2		=> "cfg_param_2",
+		CFG_3		=> "cfg_param_3",
 		);
 
 # parameters supported by the stty method
@@ -187,6 +194,13 @@ sub new {
     $self->{"_CMATCH"}		= [];
     @{ $self->{"_MATCH"} }	= "\n";
     @{ $self->{"_CMATCH"} }	= "\n";
+    $self->{DVTYPE}		= "none";
+    $self->{HNAME}		= "localhost";
+    $self->{HADDR}		= 0;
+    $self->{DATYPE}		= "raw";
+    $self->{CFG_1}		= "none";
+    $self->{CFG_2}		= "none";
+    $self->{CFG_3}		= "none";
 
     # user settable options for lookfor (the "stty" collection)
     # defaults like RedHat linux unless indicated
@@ -291,6 +305,13 @@ sub new {
     $self->{"_N_onlcr"}		= 0;
     $self->{"_N_isig"}		= 0;
     $self->{"_N_icanon"}	= 0;
+    $self->{"_N_DVTYPE"}	= 0;
+    $self->{"_N_HNAME"}		= 0;
+    $self->{"_N_HADDR"}		= 0;
+    $self->{"_N_DATYPE"}	= 0;
+    $self->{"_N_CFG_1"}		= 0;
+    $self->{"_N_CFG_2"}		= 0;
+    $self->{"_N_CFG_3"}		= 0;
 
     $self->{ALIAS} 	= $device;	# so "\\.\+++" can be changed
     $self->{DEVICE} 	= $device;	# clone so NAME stays in CommPort
@@ -987,6 +1008,48 @@ sub error_msg {
     my $self = shift;
     if (@_) { $self->{E_MSG} = yes_true ( shift ) }
     return wantarray ? @binary_opt : $self->{E_MSG};
+}
+
+sub devicetype {
+    my $self = shift;
+    if (@_) { $self->{DVTYPE} = shift; } # return true for legal names
+    return $self->{DVTYPE};
+}
+
+sub hostname {
+    my $self = shift;
+    if (@_) { $self->{HNAME} = shift; }	# return true for legal names
+    return $self->{HNAME};
+}
+
+sub hostaddr {
+    my $self = shift;
+    if (@_) { $self->{HADDR} = shift; }	# return true for assigned port
+    return $self->{HADDR};
+}
+
+sub datatype {
+    my $self = shift;
+    if (@_) { $self->{DATYPE} = shift; } # return true for legal types
+    return $self->{DATYPE};
+}
+
+sub cfg_param_1 {
+    my $self = shift;
+    if (@_) { $self->{CFG_1} = shift; }	# return true for legal param
+    return $self->{CFG_1};
+}
+
+sub cfg_param_2 {
+    my $self = shift;
+    if (@_) { $self->{CFG_2} = shift; }	# return true for legal param
+    return $self->{CFG_2};
+}
+
+sub cfg_param_3 {
+    my $self = shift;
+    if (@_) { $self->{CFG_3} = shift; }	# return true for legal param
+    return $self->{CFG_3};
 }
 
 sub baudrate {
@@ -1859,7 +1922,7 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 =head1 SYNOPSIS
 
   require 5.003;
-  use Win32::SerialPort qw( :STAT 0.17 );
+  use Win32::SerialPort qw( :STAT 0.18 );
 
 =head2 Constructors
 
@@ -1889,6 +1952,15 @@ Win32::SerialPort - User interface to Win32 Serial API calls
      # or switch to a different configuration on the same port
   $PortObj->restart($Configuration_File_Name)
        || warn "Can't reread $Configuration_File_Name: $^E\n";
+
+     # "app. variables" saved in $Configuration_File, not used internally
+  $PortObj->devicetype('none');     # CM11, CM17, 'weeder', 'modem'
+  $PortObj->hostname('localhost');  # for socket-based implementations
+  $PortObj->hostaddr(0);            # false unless specified
+  $PortObj->datatype('raw');        # in case an application needs_to_know
+  $PortObj->cfg_param_1('none');    # null string '' hard to save/restore
+  $PortObj->cfg_param_2('none');    # 3 spares should be enough for now
+  $PortObj->cfg_param_3('none');    # one may end up as a log file path
 
      # specials for test suite only
   @necessary_param = Win32::SerialPort->set_test_mode_active(1);
@@ -2196,8 +2268,10 @@ B<restart> can use to reestablish a functional setup.
   $PortObj->save($Configuration_File_Name);
 
   $PortObj->baudrate(300);
+  $PortObj->restart($Configuration_File_Name);	# back to 9600 baud
 
-  undef $PortObj;  # closes port AND frees memory back to perl
+  $PortObj->close || die "failed to close";
+  undef $PortObj;				# frees memory back to perl
 
 The F<PortName> maps to both the Registry I<Device Name> and the
 I<Properties> associated with that device. A single I<Physical> port
@@ -2274,6 +2348,22 @@ the actual elapsed time may be as much as twice the programmed limit.
 If no bytes are received, the normal timing applies.
 
 =head2 Configuration and Capability Methods
+
+Starting in Version 0.18, a number of I<Application Variables> are saved
+in B<$Configuration_File>. These parameters are not used internally. But
+methods allow setting and reading them. The intent is to facilitate the
+use of separate I<configuration scripts> to create the files. Then an
+application can use B<start> as the Constructor and not bother with
+command line processing or managing its own small configuration file.
+The default values and number of parameters is subject to change.
+
+  $PortObj->devicetype('none'); 
+  $PortObj->hostname('localhost');  # for socket-based implementations
+  $PortObj->hostaddr(0);            # a "false" value
+  $PortObj->datatype('raw');        # 'record' is another possibility
+  $PortObj->cfg_param_1('none');
+  $PortObj->cfg_param_2('none');    # 3 spares should be enough for now
+  $PortObj->cfg_param_3('none');
 
 The Win32 Serial Comm API provides extensive information concerning
 the capabilities and options available for a specific port (and
@@ -2877,7 +2967,7 @@ Namespaces. The script uses I<MakeMaker> tools not available in
 ActiveState 3xx builds. Users of those builds will need to install
 differently (see README). Programs in the test suite are modified for
 the current version. Additions to the configurtion files generated by
-B<save> prevent those created by Version 0.15 from being used by earlier
-Versions. 13 August 1999.
+B<save> prevent those created by Version 0.18 from being used by earlier
+Versions. 5 September 1999.
 
 =cut

@@ -1,6 +1,7 @@
 #! perl -w
 
-use lib './lib','../lib'; # can run from here or distribution base
+use lib '.','./t','./lib','../lib';
+# can run from here or distribution base
 require 5.003;
 
 # Before installation is performed this script should be runnable with
@@ -14,6 +15,7 @@ require 5.003;
 BEGIN { $| = 1; print "1..275\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Win32::SerialPort 0.17;
+require "DefaultPort.pm";
 $loaded = 1;
 print "ok 1\n";
 
@@ -91,6 +93,9 @@ sub is_bad {
 }
 
 my $file = "COM1";
+if ($SerialJunk::Makefile_Test_Port) {
+    $file = $SerialJunk::Makefile_Test_Port;
+}
 if (exists $ENV{Makefile_Test_Port}) {
     $file = $ENV{Makefile_Test_Port};
 }
@@ -722,7 +727,7 @@ is_bad (defined $ob2);					# 204
 
       # for handshake == "none"
 is_zero($ob->output_dsr);				# 205
-is_zero($ob->output_rts);				# 206
+is_zero($ob->output_cts);				# 206
 is_zero($ob->input_xoff);				# 207
 is_zero($ob->output_xoff);				# 208
 
@@ -775,13 +780,13 @@ is_zero($ob->tx_on_xoff);				# 238
 
 is_ok("dtr" eq $ob->handshake("dtr"));			# 239
 is_ok($ob->output_dsr);					# 240
-is_zero($ob->output_rts);				# 241
+is_zero($ob->output_cts);				# 241
 is_zero($ob->input_xoff);				# 242
 is_zero($ob->output_xoff);				# 243
 
 is_ok("rts" eq $ob->handshake("rts"));			# 244
 is_zero($ob->output_dsr);				# 245
-is_ok($ob->output_rts);					# 246
+is_ok($ob->output_cts);					# 246
 is_zero($ob->input_xoff);				# 247
 is_zero($ob->output_xoff);				# 248
 
@@ -792,14 +797,14 @@ if ($naptime) {
 
 is_ok("xoff" eq $ob->handshake("xoff"));		# 249
 is_zero($ob->output_dsr);				# 250
-is_zero($ob->output_rts);				# 251
+is_zero($ob->output_cts);				# 251
 is_ok($ob->input_xoff);					# 252
 is_ok($ob->output_xoff);				# 253
 
 is_ok("none" eq $ob->handshake("none"));		# 254
 is_zero($ob->output_dsr);				# 255
 
-is_zero($ob->output_rts);				# 256
+is_zero($ob->output_cts);				# 256
 is_zero($ob->input_xoff);				# 257
 is_zero($ob->output_xoff);				# 258
 

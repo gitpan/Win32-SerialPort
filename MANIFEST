@@ -3,6 +3,7 @@ Makefile.PL
 MANIFEST
 README.txt
 README
+any_os.plx
 demo1.plx
 demo2.plx
 demo3.plx
@@ -11,8 +12,6 @@ demo5.plx
 demo6.plx
 demo7.plx
 demo8.plx
-Install.PL
-Inst_3xx.PL
 options.plx
 stty.plx
 lib/Win32/SerialPort.pm

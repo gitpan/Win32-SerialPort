@@ -1,6 +1,7 @@
 #! perl -w
 
-use lib './lib','../lib'; # can run from here or distribution base
+use lib '.','./t','./lib','../lib';
+# can run from here or distribution base
 
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test?.t'

@@ -147,9 +147,15 @@ Revision history for Perl extension Win32API::SerialPort.
 	- Add methods for the seldom used DCB bits like ignore_null.
 	- Improved documentation on timeouts.
 
-
 0.17  Fri August 13 16:30:15 1999
 	- Add output_record and output_field separator support
 	- Add get_tick_count wrapper for Win32::GetTickCount()
 	- Add stty_opost function to tied syswrite
+
+0.18  Wed September 8 23:39:17 1999
+	- add saved utility parameters and methods (hostname, et.al)
+	- add any_os.plx
+	- major rewrite of Makefile.PL to improve "make deprived" install
+	- correct misnamed output_rts to output_cts
+	- changes in all test programs, especially t/test2.t and t/test4.t 
 

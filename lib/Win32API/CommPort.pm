@@ -65,7 +65,7 @@ $_ResetEvent = new Win32::API("kernel32", "ResetEvent", [N], I);
 use strict;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $RBUF_Size);
-$VERSION = '0.17';
+$VERSION = '0.18';
 $RBUF_Size = 4096;
 
 require Exporter;
@@ -2152,7 +2152,7 @@ sub output_dsr {
     return ($self->{"_BitMask"} & FM_fOutxDsrFlow);
 }
 
-sub output_rts {
+sub output_cts {
     my $self = shift;
     if (@_) {
         if ($self->{"_N_AUX_OFF"}) {
@@ -2447,9 +2447,9 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 
   use Win32;	## not required under all circumstances
   require 5.003;
-  use Win32API::CommPort qw( :PARAM :STAT 0.17 );
+  use Win32API::CommPort qw( :PARAM :STAT 0.18 );
 
-  ## when available ##  use Win32API::File 0.06 qw( :ALL );
+  ## when available ##  use Win32API::File 0.07 qw( :ALL );
 
 =head2 Constructors
 

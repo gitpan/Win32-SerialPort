@@ -1,6 +1,7 @@
 #! perl -w
 
-use lib '..','./lib','../lib'; # can run from here or distribution base
+use lib '.','./t','..','./lib','../lib';
+# can run from here or distribution base
 require 5.003;
 
 # Before installation is performed this script should be runnable with
@@ -14,6 +15,7 @@ require 5.003;
 BEGIN { $| = 1; print "1..315\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use AltPort 0.15;		# check inheritance & export
+require "DefaultPort.pm";
 $loaded = 1;
 print "ok 1\n";
 
@@ -29,6 +31,9 @@ use strict;
 use Win32;
 
 my $file = "COM1";
+if ($SerialJunk::Makefile_Test_Port) {
+    $file = $SerialJunk::Makefile_Test_Port;
+}
 if (exists $ENV{Makefile_Test_Port}) {
     $file = $ENV{Makefile_Test_Port};
 }

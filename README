@@ -104,6 +104,7 @@ FILES:
     MANIFEST		- file list
     README.txt		- this file (CRLF)
     README    		- same file with CPAN-friendly name (LF only)
+    any_os.plx		- cross-platform use and init
     demo1.plx		- talks to a "really dumb" terminal
     demo2.plx		- "poor man's" readline and chat
     demo3.plx		- looks like a setup menu - but only looks :-(
@@ -112,8 +113,6 @@ FILES:
     demo6.plx		- basic tied FileHandle operations, record separators
     demo7.plx		- a Perl/Tk based terminal, event loop and callbacks
     demo8.plx		- command line terminal emulator with Term::Readkey
-    Install.PL		- install using MakeMaker tools (5.004 and above)
-    Inst_3xx.PL		- install for perl 5.003
     options.plx		- post-install test that prints available options
     stty.plx		- first try at Unix lookalike
 
