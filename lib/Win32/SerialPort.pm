@@ -1,146 +1,144 @@
 package Win32::SerialPort;
 
+use strict;
+use warnings;
+
 use Win32;
-use Win32API::CommPort qw( :STAT :PARAM 0.17 );
+use Win32API::CommPort qw( :STAT :PARAM 0.20 );
 
 use Carp;
-use strict;
 
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION = '0.19';
+our $VERSION = '0.20';
 
 require Exporter;
-## require AutoLoader;
 
-@ISA = qw( Exporter Win32API::CommPort );
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
+our @ISA = qw( Exporter Win32API::CommPort );
 
-@EXPORT= qw();
-@EXPORT_OK= @Win32API::CommPort::EXPORT_OK;
-%EXPORT_TAGS = %Win32API::CommPort::EXPORT_TAGS;
+our @EXPORT= qw();
+our @EXPORT_OK= @Win32API::CommPort::EXPORT_OK;
+our %EXPORT_TAGS = %Win32API::CommPort::EXPORT_TAGS;
 
 # parameters that must be included in a "save" and "checking subs"
 
 my %validate =	(
-		ALIAS		=> "alias",
-		BAUD		=> "baudrate",
-		BINARY		=> "binary",
-		DATA		=> "databits",
-		E_MSG		=> "error_msg",
-		EOFCHAR		=> "eof_char",
-		ERRCHAR		=> "error_char",
-		EVTCHAR		=> "event_char",
-		HSHAKE		=> "handshake",
-		PARITY		=> "parity",
-		PARITY_EN	=> "parity_enable",
-		RCONST		=> "read_const_time",
-		READBUF		=> "set_read_buf",
-		RINT		=> "read_interval",
-		RTOT		=> "read_char_time",
-		STOP		=> "stopbits",
-		U_MSG		=> "user_msg",
-		WCONST		=> "write_const_time",
-		WRITEBUF	=> "set_write_buf",
-		WTOT		=> "write_char_time",
-		XOFFCHAR	=> "xoff_char",
-		XOFFLIM		=> "xoff_limit",
-		XONCHAR		=> "xon_char",
-		XONLIM		=> "xon_limit",
-		intr		=> "is_stty_intr",
-		quit		=> "is_stty_quit",
-		s_eof		=> "is_stty_eof",
-		eol		=> "is_stty_eol",
-		erase		=> "is_stty_erase",
-		s_kill		=> "is_stty_kill",
-		bsdel		=> "stty_bsdel",
-		clear		=> "is_stty_clear",
-		echo		=> "stty_echo",
-		echoe		=> "stty_echoe",
-		echok		=> "stty_echok",
-		echonl		=> "stty_echonl",
-		echoke		=> "stty_echoke",
-		echoctl		=> "stty_echoctl",
-		istrip		=> "stty_istrip",
-		icrnl		=> "stty_icrnl",
-		ocrnl		=> "stty_ocrnl",
-		opost		=> "stty_opost",
-		igncr		=> "stty_igncr",
-		inlcr		=> "stty_inlcr",
-		onlcr		=> "stty_onlcr",
-		isig		=> "stty_isig",
-		icanon		=> "stty_icanon",
-		DVTYPE		=> "devicetype",
-		HNAME		=> "hostname",
-		HADDR		=> "hostaddr",
-		DATYPE		=> "datatype",
-		CFG_1		=> "cfg_param_1",
-		CFG_2		=> "cfg_param_2",
-		CFG_3		=> "cfg_param_3",
-		);
+   ALIAS     => "alias",
+   BAUD      => "baudrate",
+   BINARY    => "binary",
+   DATA      => "databits",
+   E_MSG     => "error_msg",
+   EOFCHAR   => "eof_char",
+   ERRCHAR   => "error_char",
+   EVTCHAR   => "event_char",
+   HSHAKE    => "handshake",
+   PARITY    => "parity",
+   PARITY_EN => "parity_enable",
+   RCONST    => "read_const_time",
+   READBUF   => "set_read_buf",
+   RINT      => "read_interval",
+   RTOT      => "read_char_time",
+   STOP      => "stopbits",
+   U_MSG     => "user_msg",
+   WCONST    => "write_const_time",
+   WRITEBUF  => "set_write_buf",
+   WTOT      => "write_char_time",
+   XOFFCHAR  => "xoff_char",
+   XOFFLIM   => "xoff_limit",
+   XONCHAR   => "xon_char",
+   XONLIM    => "xon_limit",
+   intr      => "is_stty_intr",
+   quit      => "is_stty_quit",
+   s_eof     => "is_stty_eof",
+   eol       => "is_stty_eol",
+   erase     => "is_stty_erase",
+   s_kill    => "is_stty_kill",
+   bsdel     => "stty_bsdel",
+   clear     => "is_stty_clear",
+   echo      => "stty_echo",
+   echoe     => "stty_echoe",
+   echok     => "stty_echok",
+   echonl    => "stty_echonl",
+   echoke    => "stty_echoke",
+   echoctl   => "stty_echoctl",
+   istrip    => "stty_istrip",
+   icrnl     => "stty_icrnl",
+   ocrnl     => "stty_ocrnl",
+   opost     => "stty_opost",
+   igncr     => "stty_igncr",
+   inlcr     => "stty_inlcr",
+   onlcr     => "stty_onlcr",
+   isig      => "stty_isig",
+   icanon    => "stty_icanon",
+   DVTYPE    => "devicetype",
+   HNAME     => "hostname",
+   HADDR     => "hostaddr",
+   DATYPE    => "datatype",
+   CFG_1     => "cfg_param_1",
+   CFG_2     => "cfg_param_2",
+   CFG_3     => "cfg_param_3",
+);
 
 # parameters supported by the stty method
 
-my %opts = (	"intr"		=> "is_stty_intr:argv_char",
-		"quit"		=> "is_stty_quit:argv_char",
-		"eof"		=> "is_stty_eof:argv_char",
-		"eol"		=> "is_stty_eol:argv_char",
-		"erase"		=> "is_stty_erase:argv_char",
-		"kill"		=> "is_stty_kill:argv_char",
-		"echo"		=> "stty_echo:1",
-		"-echo"		=> "stty_echo:0",
-		"echoe"		=> "stty_echoe:1",
-		"-echoe"	=> "stty_echoe:0",
-		"echok"		=> "stty_echok:1",
-		"-echok"	=> "stty_echok:0",
-		"echonl"	=> "stty_echonl:1",
-		"-echonl"	=> "stty_echonl:0",
-		"echoke"	=> "stty_echoke:1",
-		"-echoke"	=> "stty_echoke:0",
-		"echoctl"	=> "stty_echoctl:1",
-		"-echoctl"	=> "stty_echoctl:0",
-		"istrip"	=> "stty_istrip:1",
-		"-istrip"	=> "stty_istrip:0",
-		"icrnl"		=> "stty_icrnl:1",
-		"-icrnl"	=> "stty_icrnl:0",
-		"ocrnl"		=> "stty_ocrnl:1",
-		"-ocrnl"	=> "stty_ocrnl:0",
-		"igncr"		=> "stty_igncr:1",
-		"-igncr"	=> "stty_igncr:0",
-		"inlcr"		=> "stty_inlcr:1",
-		"-inlcr"	=> "stty_inlcr:0",
-		"onlcr"		=> "stty_onlcr:1",
-		"-onlcr"	=> "stty_onlcr:0",
-		"opost"		=> "stty_opost:1",
-		"-opost"	=> "stty_opost:0",
-		"isig"		=> "stty_isig:1",
-		"-isig"		=> "stty_isig:0",
-		"icanon"	=> "stty_icanon:1",
-		"-icanon"	=> "stty_icanon:0",
-		"parenb"	=> "parity_enable:1",
-		"-parenb"	=> "parity_enable:0",
-		"inpck"		=> "parity_enable:1",
-		"-inpck"	=> "parity:none",
-		"cs5"		=> "databits:5",
-		"cs6"		=> "databits:6",
-		"cs7"		=> "databits:7",
-		"cs8"		=> "databits:8",
-		"cstopb"	=> "stopbits:2",
-		"-cstopb"	=> "stopbits:1",
-		"parodd"	=> "parity:odd",
-		"-parodd"	=> "parity:even",
-		"clocal"	=> "handshake:none",
-		"-clocal"	=> "handshake:dtr",
-		"crtscts"	=> "handshake:rts",
-		"-crtscts"	=> "handshake:none",
-		"ixon"		=> "handshake:xoff",
-		"-ixon"		=> "handshake:none",
-		"ixoff"		=> "handshake:xoff",
-		"-ixoff"	=> "handshake:none",
-		"start"		=> "xon_char:argv_char",
-		"stop"		=> "xoff_char:argv_char",
-	    );
+my %opts = (
+   "intr"     => "is_stty_intr:argv_char",
+   "quit"     => "is_stty_quit:argv_char",
+   "eof"      => "is_stty_eof:argv_char",
+   "eol"      => "is_stty_eol:argv_char",
+   "erase"    => "is_stty_erase:argv_char",
+   "kill"     => "is_stty_kill:argv_char",
+   "echo"     => "stty_echo:1",
+   "-echo"    => "stty_echo:0",
+   "echoe"    => "stty_echoe:1",
+   "-echoe"   => "stty_echoe:0",
+   "echok"    => "stty_echok:1",
+   "-echok"   => "stty_echok:0",
+   "echonl"   => "stty_echonl:1",
+   "-echonl"  => "stty_echonl:0",
+   "echoke"   => "stty_echoke:1",
+   "-echoke"  => "stty_echoke:0",
+   "echoctl"  => "stty_echoctl:1",
+   "-echoctl" => "stty_echoctl:0",
+   "istrip"   => "stty_istrip:1",
+   "-istrip"  => "stty_istrip:0",
+   "icrnl"    => "stty_icrnl:1",
+   "-icrnl"   => "stty_icrnl:0",
+   "ocrnl"    => "stty_ocrnl:1",
+   "-ocrnl"   => "stty_ocrnl:0",
+   "igncr"    => "stty_igncr:1",
+   "-igncr"   => "stty_igncr:0",
+   "inlcr"    => "stty_inlcr:1",
+   "-inlcr"   => "stty_inlcr:0",
+   "onlcr"    => "stty_onlcr:1",
+   "-onlcr"   => "stty_onlcr:0",
+   "opost"    => "stty_opost:1",
+   "-opost"   => "stty_opost:0",
+   "isig"     => "stty_isig:1",
+   "-isig"    => "stty_isig:0",
+   "icanon"   => "stty_icanon:1",
+   "-icanon"  => "stty_icanon:0",
+   "parenb"   => "parity_enable:1",
+   "-parenb"  => "parity_enable:0",
+   "inpck"    => "parity_enable:1",
+   "-inpck"   => "parity:none",
+   "cs5"      => "databits:5",
+   "cs6"      => "databits:6",
+   "cs7"      => "databits:7",
+   "cs8"      => "databits:8",
+   "cstopb"   => "stopbits:2",
+   "-cstopb"  => "stopbits:1",
+   "parodd"   => "parity:odd",
+   "-parodd"  => "parity:even",
+   "clocal"   => "handshake:none",
+   "-clocal"  => "handshake:dtr",
+   "crtscts"  => "handshake:rts",
+   "-crtscts" => "handshake:none",
+   "ixon"     => "handshake:xoff",
+   "-ixon"    => "handshake:none",
+   "ixoff"    => "handshake:xoff",
+   "-ixoff"   => "handshake:none",
+   "start"    => "xon_char:argv_char",
+   "stop"     => "xoff_char:argv_char",
+);
 
 #### Package variable declarations ####
 
@@ -163,6 +161,11 @@ sub new {
     my $proto = shift;
     my $class = ref($proto) || $proto;
     my $device = shift;
+    my $alias = $device;
+    if ($device =~ /^COM\d+$/io) {
+	$device = '\\\\.\\' . $device;
+	# required COM10 and beyond, done for all to facilitate testing
+    }
     my @new_cmd = ($device);
     my $quiet = shift;
     if ($quiet) {
@@ -238,7 +241,7 @@ sub new {
 	# echo \n after kill character
     $self->{echok}	= 1;
 
-	# echo \n 
+	# echo \n
     $self->{echonl}	= 0;
 
 	# echo clear string after kill character
@@ -313,7 +316,7 @@ sub new {
     $self->{"_N_CFG_2"}		= 0;
     $self->{"_N_CFG_3"}		= 0;
 
-    $self->{ALIAS} 	= $device;	# so "\\.\+++" can be changed
+    $self->{ALIAS} 	= $alias;	# so "\\.\+++" can be changed
     $self->{DEVICE} 	= $device;	# clone so NAME stays in CommPort
 
     ($self->{MAX_RXB}, $self->{MAX_TXB}) = $self->buffer_max;
@@ -564,26 +567,20 @@ sub is_prompt {
 sub are_match {
     my $self = shift;
     my $pat;
-    my $patno = 0;
-    my $reno = 0;
     my $re_next = 0;
     if (@_) {
 	@{ $self->{"_MATCH"} } = @_;
-	if ($] >= 5.005) {
-	    @{ $self->{"_CMATCH"} } = ();
-	    while ($pat = shift) {
-	        if ($re_next) {
-		    $re_next = 0;
-	            eval 'push (@{ $self->{"_CMATCH"} }, qr/$pat/)';
-		} else {
-	            push (@{ $self->{"_CMATCH"} }, $pat);
-		}
-	        if ($pat eq "-re") {
-		    $re_next++;
-	        }
+	@{ $self->{"_CMATCH"} } = ();
+	while ($pat = shift) {
+	    if ($re_next) {
+		$re_next = 0;
+	        eval 'push (@{ $self->{"_CMATCH"} }, qr/$pat/)';
+	   } else {
+	        push (@{ $self->{"_CMATCH"} }, $pat);
+	   }
+	   if ($pat eq "-re") {
+		$re_next++;
 	    }
-	} else {
-	    @{ $self->{"_CMATCH"} } = @_;
 	}
     }
     return @{ $self->{"_MATCH"} };
@@ -597,19 +594,19 @@ sub get_start_values {
     my $filename = shift;
 
     unless ( open CF, "<$filename" ) {
-        carp "can't open file: $filename"; 
+        carp "can't open file: $filename";
         return;
     }
     my ($signature, $name, @values) = <CF>;
     close CF;
-    
+
     unless ( $cfg_file_sig eq $signature ) {
-        carp "Invalid signature in $filename: $signature"; 
+        carp "Invalid signature in $filename: $signature";
         return;
     }
     chomp $name;
     unless ( $self->{DEVICE} eq $name ) {
-        carp "Invalid Port DEVICE=$self->{DEVICE} in $filename: $name"; 
+        carp "Invalid Port DEVICE=$self->{DEVICE} in $filename: $name";
         return;
     }
     if ($Verbose or not $self) {
@@ -633,14 +630,14 @@ sub get_start_values {
         else {
             $gosub = $validate{$key};
             unless (defined &$gosub ($self, $value)) {
-    	        carp "Invalid parameter for $key=$value   "; 
+    	        carp "Invalid parameter for $key=$value   ";
     	        return;
 	    }
         }
     }
     use strict 'refs';
     if ($fault) {
-        carp "Invalid value in $filename"; 
+        carp "Invalid value in $filename";
         undef $self;
         return;
     }
@@ -653,7 +650,7 @@ sub restart {
     my $filename = shift;
 
     unless ( $self->init_done ) {
-        carp "Can't restart before Port has been initialized"; 
+        carp "Can't restart before Port has been initialized";
         return;
     }
     get_start_values($self, $filename);
@@ -668,14 +665,14 @@ sub start {
     my $filename = shift;
 
     unless ( open CF, "<$filename" ) {
-        carp "can't open file: $filename"; 
+        carp "can't open file: $filename";
         return;
     }
     my ($signature, $name, @values) = <CF>;
     close CF;
-    
+
     unless ( $cfg_file_sig eq $signature ) {
-        carp "Invalid signature in $filename: $signature"; 
+        carp "Invalid signature in $filename: $signature";
         return;
     }
     chomp $name;
@@ -694,7 +691,7 @@ sub start {
             write_settings ($self);
 	}
         else {
-            carp "Invalid value in $filename"; 
+            carp "Invalid value in $filename";
             undef $self;
             return;
         }
@@ -709,7 +706,7 @@ sub write_settings {
     # initialize returns number of faults
     if ( $self->initialize(@items) ) {
         unless (nocarp) {
-            carp "write_settings failed, closing port"; 
+            carp "write_settings failed, closing port";
 	    $self->close;
 	}
         return;
@@ -730,19 +727,19 @@ sub save {
 
     return unless (@_);
     unless ($self->init_done) {
-        carp "can't save until init_done"; 
+        carp "can't save until init_done";
 	return;
     }
 
     my $filename = shift;
     unless ( open CF, ">$filename" ) {
-        carp "can't open file: $filename"; 
+        carp "can't open file: $filename";
         return;
     }
     print CF "$cfg_file_sig";
     print CF "$self->{DEVICE}\n";
 	# used to "reopen" so must be DEVICE=NAME
-    
+
     no strict 'refs';		# for $gosub
     while (($item, $getsub) = each %validate) {
         chomp $getsub;
@@ -758,7 +755,7 @@ sub save {
 }
 
 ##### tied FileHandle support
- 
+
 sub TIEHANDLE {
     my $proto = shift;
     my $class = ref($proto) || $proto;
@@ -768,7 +765,7 @@ sub TIEHANDLE {
     my $self = start($class, shift);
     return $self;
 }
- 
+
 # WRITE this, LIST
 #      This method will be called when the handle is written to via the
 #      syswrite function.
@@ -789,7 +786,7 @@ sub WRITE {
 #      This method will be triggered every time the tied handle is printed to
 #      with the print() function. Beyond its self reference it also expects
 #      the list that was passed to the print function.
- 
+
 sub PRINT {
     my $self = shift;
     return unless (@_);
@@ -840,12 +837,12 @@ sub post_print {
     $^E = 0;
     1;
 }
- 
+
 # PRINTF this, LIST
 #      This method will be triggered every time the tied handle is printed to
 #      with the printf() function. Beyond its self reference it also expects
 #      the format and list that was passed to the printf function.
- 
+
 sub PRINTF {
     my $self = shift;
     my $fmt = shift;
@@ -854,7 +851,7 @@ sub PRINTF {
     my $output = sprintf($fmt, @_);
     $self->PRINT($output);
 }
- 
+
 # READ this, LIST
 #      This method will be called when the handle is read from via the read
 #      or sysread functions.
@@ -901,7 +898,7 @@ sub READ {
 # READLINE this
 #      This method will be called when the handle is read from via <HANDLE>.
 #      The method should return undef when there is no more data.
- 
+
 sub READLINE {
     my $self = shift;
     return if (@_);
@@ -951,10 +948,10 @@ sub READLINE {
         }
     }
 }
- 
+
 # GETC this
 #      This method will be called when the getc function is called.
- 
+
 sub GETC {
     my $self = shift;
     my ($count, $in) = $self->read(1);
@@ -967,29 +964,29 @@ sub GETC {
         return;
     }
 }
- 
+
 # CLOSE this
 #      This method will be called when the handle is closed via the close
 #      function.
- 
+
 sub CLOSE {
     my $self = shift;
     my $success = $self->close;
     if ($Verbose) { printf "CLOSE result:%d\n", $success; }
     return $success;
 }
- 
+
 # DESTROY this
 #      As with the other types of ties, this method will be called when the
 #      tied handle is about to be destroyed. This is useful for debugging and
 #      possibly cleaning up.
- 
+
 sub DESTROY {
     my $self = shift;
     if ($Verbose) { print "SerialPort::DESTROY called.\n"; }
     $self->SUPER::DESTROY();
 }
- 
+
 ###############
 
 sub alias {
@@ -1008,6 +1005,11 @@ sub error_msg {
     my $self = shift;
     if (@_) { $self->{E_MSG} = yes_true ( shift ) }
     return wantarray ? @binary_opt : $self->{E_MSG};
+}
+
+sub device { ## readonly for test suite
+    my $self = shift;
+    return $self->{DEVICE};
 }
 
 sub devicetype {
@@ -1223,7 +1225,7 @@ sub lookclear {
     my $self = shift;
     if (nocarp && (@_ == 1)) {
         $self->{"_T_INPUT"} = shift;
-    } 
+    }
     $self->{"_LOOK"}	 = "";
     $self->{"_LASTLOOK"} = "";
     $self->{"_LMATCH"}	 = "";
@@ -1246,11 +1248,7 @@ sub lastline {
     my $self = shift;
     if (@_) {
         $self->{"_LASTLINE"} = shift;
-	if ($] >= 5.005) {
-	    eval '$self->{"_CLASTLINE"} = qr/$self->{"_LASTLINE"}/';
-	} else {
-            $self->{"_CLASTLINE"} = $self->{"_LASTLINE"};
-	}
+	eval '$self->{"_CLASTLINE"} = qr/$self->{"_LASTLINE"}/';
     }
     return $self->{"_LASTLINE"};
 }
@@ -1339,7 +1337,7 @@ sub lookfor {
 	    $lf_quit = $self->{quit};
 	    $lf_intr = $self->{intr};
 	}
-	
+
 	my @loc_char = split (//, $loc);
 	while (defined ($n_char = shift @loc_char)) {
 ##	    printf STDERR "0x%x ", ord($n_char);
@@ -1350,7 +1348,7 @@ sub lookfor {
 	            if ($echo_ctl && (($mpos lt "@")|($mpos eq chr(127)))) {
 	                $self->write($self->{bsdel});
 		    }
-		} 
+		}
 	    }
 	    elsif ($n_char eq $lf_kill) {
 		$self->{"_LOOK"} = "";
@@ -1869,17 +1867,28 @@ sub argv_char {
 }
 
 sub debug {
-    my $self = shift;
+    my $self = shift || '';	# call be called as sub without object
+    return @binary_opt if (wantarray);
     if (ref($self))  {
-        if (@_) { $self->{"_DEBUG"} = yes_true ( shift ); }
+        if (@_) {
+	    $self->{"_DEBUG"} = yes_true ( shift );
+	    $self->debug_comm($self->{"_DEBUG"});
+	}
         else {
 	    my $tmp = $self->{"_DEBUG"};
             nocarp || carp "Debug level: $self->{ALIAS} = $tmp";
 	    $self->debug_comm($tmp);
-            return $self->{"_DEBUG"};
         }
+        return $self->{"_DEBUG"};
     } else {
-        $Verbose = yes_true ($self);
+	if ($self =~ m/Port/io) {
+	    # cover the case when someone uses the pseudohash calling style
+	    # $obj->debug() on an unblessed $obj (old test cases do that)
+	    $self = shift || '';
+	}
+	if ($self ne '') {
+        	$Verbose = yes_true ($self);
+	}
         nocarp || carp "SerialPort Debug Class = $Verbose";
 	Win32API::CommPort::debug_comm($Verbose);
         return $Verbose;
@@ -1903,9 +1912,7 @@ sub close {
     return $success;
 }
 
-1;  # so the require or use succeeds
-
-# Autoload methods go after =cut, and are processed by the autosplit program.
+1;
 
 __END__
 
@@ -1961,6 +1968,7 @@ Win32::SerialPort - User interface to Win32 Serial API calls
      # specials for test suite only
   @necessary_param = Win32::SerialPort->set_test_mode_active(1);
   $PortObj->lookclear("loopback to next 'input' method");
+  $name = $PortObj->device();        # readonly for test suite
 
 =head2 Configuration Parameter Methods
 
@@ -1989,7 +1997,7 @@ Win32::SerialPort - User interface to Win32 Serial API calls
 
   $PortObj->read_interval(100);    # max time between read char (milliseconds)
   $PortObj->read_char_time(5);     # avg time between read char
-  $PortObj->read_const_time(100);  # total = (avg * bytes) + const 
+  $PortObj->read_const_time(100);  # total = (avg * bytes) + const
   $PortObj->write_char_time(5);
   $PortObj->write_const_time(100);
 
@@ -2130,7 +2138,7 @@ action desired is a message, B<status> provides I<Built-In> BitMask processing:
   $PortObj->stty_echo(0);	# echo every character
   $PortObj->stty_echoe(1);	# if echo erase character with bsdel string
   $PortObj->stty_echok(1);	# if echo \n after kill character
-  $PortObj->stty_echonl(0);	# if echo \n 
+  $PortObj->stty_echonl(0);	# if echo \n
   $PortObj->stty_echoke(1);	# if echo clear string after kill character
   $PortObj->stty_echoctl(0);	# if echo "^Char" for control chars
   $PortObj->stty_istrip(0);	# strip input to 7-bits
@@ -2151,12 +2159,12 @@ action desired is a message, B<status> provides I<Built-In> BitMask processing:
 These return scalar context only.
 
   can_baud            can_databits           can_stopbits
-  can_dtrdsr          can_handshake          can_parity_check 
-  can_parity_config   can_parity_enable      can_rlsd 
-  can_16bitmode       is_rs232               is_modem 
-  can_rtscts          can_xonxoff            can_xon_char 
-  can_spec_char       can_interval_timeout   can_total_timeout 
-  buffer_max          can_rlsd_config
+  can_dtrdsr          can_handshake          can_parity_check
+  can_parity_config   can_parity_enable      can_rlsd
+  can_16bitmode       is_rs232               is_modem
+  can_rtscts          can_xonxoff            can_xon_char
+  can_spec_char       can_interval_timeout   can_total_timeout
+  buffer_max          can_rlsd_config        can_ioctl
 
 =head2 Operating Methods inherited from Win32API::CommPort
 
@@ -2290,6 +2298,14 @@ name used by "built-in" messages.
 
   $P2->alias("FIDO");
 
+Beginning with version 0.20, the prefix is added automatically to device
+names that match the regular expression "^COM\d+$" so that COM10, COM11,
+etc. do not require separate handling. A corresponding alias is created.
+Hence, for the first constructor above:
+
+  $alias = $P1->alias;    # $alias = "COM1"
+  $device = $P1->device:  # $device = "\\.\COM1" 
+
 The second constructor, B<start> is intended to simplify scripts which
 need a constant setup. It executes all the steps from B<new> to
 B<write_settings> based on a previously saved configuration. This
@@ -2353,7 +2369,7 @@ application can use B<start> as the Constructor and not bother with
 command line processing or managing its own small configuration file.
 The default values and number of parameters is subject to change.
 
-  $PortObj->devicetype('none'); 
+  $PortObj->devicetype('none');
   $PortObj->hostname('localhost');  # for socket-based implementations
   $PortObj->hostaddr(0);            # a "false" value
   $PortObj->datatype('raw');        # 'record' is another possibility
@@ -2410,7 +2426,7 @@ to call this way - but will get C<(0,1)> if they do. Beginning in
 Version 0.16, Binary selections inherited from Win32API::CommPort may
 not return anything useful in list context. The null list C<(undef)>
 will be returned for failed calls in list context (e.g. for an invalid
-or unexpected argument). 
+or unexpected argument).
 
 =item Asynchronous (Background) I/O
 
@@ -2429,7 +2445,7 @@ exceeds the value set by B<read_interval>. It does this by timestamping
 each character. It appears that at least one character must by received in
 I<every> B<read> I<call to the API> to initialize the mechanism. The timer
 is then reset by each succeeding character. If no characters are received,
-the read will block indefinitely. 
+the read will block indefinitely.
 
 Setting B<read_interval> to C<0xffffffff> will do a non-blocking read.
 The B<ReadFile> returns immediately whether or not any characters are
@@ -2531,77 +2547,77 @@ The B<read, input, read_done, write> methods all treat data as "raw".
         stty (control)		SerialPort		Default Value
         ----------------	------------------      -------------
         parenb inpck		parity_enable		from port
-        
+
         parodd			parity			from port
-        
+
         cs5 cs6 cs7 cs8		databits		from port
-        
+
         cstopb			stopbits		from port
-        
+
         clocal crtscts		handshake		from port
         ixon ixoff		handshake		from port
 
         time			read_const_time		from port
-        
+
         110 300 600 1200 2400	baudrate		from port
         4800 9600 19200 38400	baudrate
-        
+
         75 134.5 150 1800	fixed baud only - not selectable
-        
+
         g, "stty < /dev/x"	start, save		none
-        
+
         sane			restart			none
 
-       
- 
+
+
         stty (input)		SerialPort		Default Value
         ----------------	------------------      -------------
 	istrip			stty_istrip		off
-        
+
 	igncr			stty_igncr		off
-        
+
 	inlcr			stty_inlcr		off
-        
+
 	icrnl			stty_icrnl		on
-        
+
         parmrk			error_char		from port (off typ)
 
-       
- 
+
+
         stty (output)		SerialPort		Default Value
         ----------------	------------------      -------------
 	ocrnl			stty_ocrnl		off if opost
-        
+
 	onlcr			stty_onlcr		on if opost
-        
+
 	opost			stty_opost		off
 
-       
- 
+
+
         stty (local)		SerialPort		Default Value
         ----------------	------------------      -------------
         raw			read, write, input	none
-        
+
         cooked			lookfor			none
-        
+
 	echo			stty_echo		off
-        
+
 	echoe			stty_echoe		on if echo
-        
+
 	echok			stty_echok		on if echo
-        
+
 	echonl			stty_echonl		off
-        
+
 	echoke			stty_echoke		on if echo
-        
+
 	echoctl			stty_echoctl		off
 
 	isig			stty_isig		off
 
 	icanon			stty_icanon		off
-      
- 
- 
+
+
+
         stty (char)		SerialPort		Default Value
         ----------------	------------------      -------------
 	intr			stty_intr		"\cC"
@@ -2629,12 +2645,12 @@ The B<read, input, read_done, write> methods all treat data as "raw".
 
         start			xon_char		from port ("\cQ" typ)
 				is_xon_char		17
-        
+
         stop			xoff_char		from port ("\cS" typ)
 				is_xoff_char		19
-        
-        
-        
+
+
+
         The following stty functions have no equivalent in SerialPort:
         --------------------------------------------------------------
         [-]hup		[-]ignbrk	[-]brkint	[-]ignpar
@@ -2645,7 +2661,7 @@ The B<read, input, read_done, write> methods all treat data as "raw".
 The stty function list is taken from the documentation for IO::Stty by
 Austin Schutz.
 
-=head2 Lookfor and I/O Processing 
+=head2 Lookfor and I/O Processing
 
 Many of the B<stty_xxx> methods support features which are necessary for
 line-oriented input (such as command-line handling). These include methods
@@ -2686,7 +2702,7 @@ is C<("\n")>, which matches complete lines.
      # possible match strings: "pattern" is a regular expression,
      #                         "text1" and "text2" are literal strings
 
-The I<Regular Expression> handling in B<lookfor> is still 
+The I<Regular Expression> handling in B<lookfor> is still
 experimental. Please let me know if you use it (or can't use it), so
 I can confirm bug fixes don't break your code. For literal strings,
 C<$match> and C<$pattern> should be identical. The C<$instead> value
@@ -2751,7 +2767,7 @@ B<READLINE>. The default for B<linesize> is 1. There is no default for
 the B<lastline> method.
 
 In Version 0.15, I<Regular Expressions> set by B<are_match> and B<lastline>
-will be pre-compiled using the I<qr//> construct on Perl 5.005 and higher.
+will be pre-compiled using the I<qr//> construct.
 This doubled B<lookfor> and B<streamline> speed in my tests with
 I<Regular Expressions> - but actual improvements depend on both patterns
 and input data.
@@ -2785,7 +2801,7 @@ the defaults were similar to Unix defaults. But some users found this
 ackward and confusing.
 
 Sometimes, you want perl to echo input characters back to the serial
-device (and other times you don't want that).  
+device (and other times you don't want that).
 
   $PortObj->stty_echo;		# echo every character
   $PortObj->stty_echoe;		# if echo erase with bsdel string (default)
@@ -2814,7 +2830,7 @@ I<FileHandle>, you must use B<tie> as the constructor.
 
 e.g. the following is WRONG!!____C<print $PortObj "some text";>
 
-You need something like this (Perl 5.005):
+You need something like this:
 
         # construct
     $tie_ob = tie(*FOO,'Win32::SerialPort', $cfgfile)
@@ -2838,21 +2854,21 @@ You need something like this (Perl 5.005):
 Always include the C<undef $tie_ob> before the B<untie>. See the I<Gotcha>
 description in I<perltie>.
 
-The Perl 5.004 implementation of I<tied FileHandles> is missing
-B<close> and B<syswrite>. The Perl 5.003 version is essentially unusable.
-If you need these functions, consider Perl 5.005 seriously.
-
 An important note about Win32 filenames. The reserved device names such
 as C< COM1, AUX, LPT1, CON, PRN > can NOT be used as filenames. Hence
 I<"COM2.cfg"> would not be usable for B<$Configuration_File_Name>.
 
-Thanks to Ken White for testing on NT.
+Thanks to Ken White for initial testing on NT.
 
 There is a linux clone of this module implemented using I<POSIX.pm>.
 It also runs on AIX and Solaris, and will probably run on other POSIX
 systems as well. It does not currently support the complete set of methods -
 although portability of user programs is excellent for the calls it does
 support. It is available from CPAN as I<Device::SerialPort>.
+
+There is an emulator for testing application code without hardware.
+It is available from CPAN as I<Test::Device::SerialPort>. But it also
+works fine with the Win32 version.
 
 =head1 KNOWN LIMITATIONS
 
@@ -2875,10 +2891,8 @@ file (which uses "\n" as an internal terminator).
 
 With all the options, this module needs a good tutorial. It doesn't
 have a complete one yet. A I<"How to get started"> tutorial appeared
-B<The Perl Journal #13> (March 1999). Examples from the article are
-available from http://tpj.com and from http://members.aol.com/Bbirthisel.
-The demo programs in the distribution are a good starting point for
-additional examples. 
+B<The Perl Journal #13> (March 1999). The demo programs in the distribution
+are a good starting point for additional examples.
 
 =item Buffers
 
@@ -2908,15 +2922,10 @@ documentation. Available from I<Micro$oft Pre$$>.
 On Win32, a port must B<close> before it can be reopened again by the same
 process. If a physical port can be accessed using more than one name (see
 above), all names are treated as one. The perl script can also be run
-multiple times within a single batch file or shell script. The I<Makefile.PL>
-spawns subshells with backticks to run the test suite on Perl 5.003 - ugly,
-but it works.
+multiple times within a single batch file or shell script.
 
 On NT, a B<read_done> or B<write_done> returns I<False> if a background
-operation is aborted by a purge. Win95 returns I<True>.
-
-EXTENDED_OS_ERROR ($^E) is not supported by the binary ports before 5.005.
-It "sort-of-tracks" B<$!> in 5.003 and 5.004, but YMMV.
+operation is aborted by a purge. Win9x returns I<True>.
 
 A few NT systems seem to set B<can_parity_enable> true, but do not actually
 support setting B<parity_enable>. This may be a characteristic of certain
@@ -2928,7 +2937,7 @@ __Please send comments and bug reports to wcbirthisel@alum.mit.edu.
 
 Bill Birthisel, wcbirthisel@alum.mit.edu, http://members.aol.com/Bbirthisel/.
 
-Tye McQueen, tye@metronet.com, http://www.metronet.com/~tye/.
+Tye McQueen contributed but no longer supports these modules.
 
 =head1 SEE ALSO
 
@@ -2944,7 +2953,7 @@ Expect.pm - Austin Schutz's adaptation of TCL's "expect" for Unix Perls
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999, Bill Birthisel. All rights reserved.
+Copyright (C) 2010, Bill Birthisel. All rights reserved.
 
 This module is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
@@ -2952,18 +2961,9 @@ under the same terms as Perl itself.
 =head2 COMPATIBILITY
 
 Most of the code in this module has been stable since version 0.12.
-Except for items indicated as I<Experimental>, I do not expect functional
-changes which are not fully backwards compatible. However, Version 0.16
-removes the "dummy (0, 1) list" which was returned by many binary methods
-in case they were called in list context. I do not know of any use outside
-the test suite for that feature.
-
-Version 0.12 added an I<Install.PL> script to put modules into the documented
-Namespaces. The script uses I<MakeMaker> tools not available in
-ActiveState 3xx builds. Users of those builds will need to install
-differently (see README). Programs in the test suite are modified for
-the current version. Additions to the configurtion files generated by
-B<save> prevent those created by Version 0.18 from being used by earlier
-Versions. 4 November 1999.
+Version 0.20 adds explicit support for COM10++ and USB - although the
+functionality existed before. Perl ports before 5.6.0 are no longer
+supported for test or install. The modules themselves work with 5.003.
+1 April 2010.
 
 =cut

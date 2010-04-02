@@ -1,84 +1,66 @@
 # This part includes the low-level API calls
 package Win32API::CommPort;
 
+use strict;
+use warnings;
+
 use Win32;
-use Win32::API 0.01;
-if ( $] < 5.004 ) {
-    my $no_silly_warning = $Win32::API::VERSION;
-    $no_silly_warning = $Win32::API::pack;
-}
+use Win32::API;
 
 use Carp;
-use strict;
 
 		#### API declarations ####
 no strict 'subs';	# these may be imported someday
 
-use vars qw(
-	$_CloseHandle		$_CreateFile		$_GetCommState
-	$_ReadFile		$_SetCommState		$_SetupComm
-	$_PurgeComm		$_CreateEvent		$_GetCommTimeouts
-	$_SetCommTimeouts	$_GetCommProperties	$_ClearCommBreak
-	$_ClearCommError	$_EscapeCommFunction	$_GetCommConfig
-	$_GetCommMask		$_GetCommModemStatus	$_SetCommBreak
-	$_SetCommConfig		$_SetCommMask		$_TransmitCommChar
-	$_WaitCommEvent		$_WriteFile		$_ResetEvent
-	$_GetOverlappedResult
-);
-
-$_CreateFile = new Win32::API("kernel32", "CreateFile",
+our $_CreateFile = Win32::API->new("kernel32", "CreateFile",
 	 [P, N, N, N, N, N, N], N);
-$_CloseHandle = new Win32::API("kernel32", "CloseHandle", [N], N);
-$_GetCommState = new Win32::API("kernel32", "GetCommState", [N, P], I);
-$_SetCommState = new Win32::API("kernel32", "SetCommState", [N, P], I);
-$_SetupComm = new Win32::API("kernel32", "SetupComm", [N, N, N], I);
-$_PurgeComm = new Win32::API("kernel32", "PurgeComm", [N, N], I);
-$_CreateEvent = new Win32::API("kernel32", "CreateEvent", [P, I, I, P], N);
-$_GetCommTimeouts = new Win32::API("kernel32", "GetCommTimeouts",
+our $_CloseHandle = Win32::API->new("kernel32", "CloseHandle", [N], N);
+our $_GetCommState = Win32::API->new("kernel32", "GetCommState", [N, P], I);
+our $_SetCommState = Win32::API->new("kernel32", "SetCommState", [N, P], I);
+our $_SetupComm = Win32::API->new("kernel32", "SetupComm", [N, N, N], I);
+our $_PurgeComm = Win32::API->new("kernel32", "PurgeComm", [N, N], I);
+our $_CreateEvent = Win32::API->new("kernel32", "CreateEvent", [P, I, I, P], N);
+our $_GetCommTimeouts = Win32::API->new("kernel32", "GetCommTimeouts",
 	 [N, P], I);
-$_SetCommTimeouts = new Win32::API("kernel32", "SetCommTimeouts",
+our $_SetCommTimeouts = Win32::API->new("kernel32", "SetCommTimeouts",
 	 [N, P], I);
-$_GetCommProperties = new Win32::API("kernel32", "GetCommProperties",
+our $_GetCommProperties = Win32::API->new("kernel32", "GetCommProperties",
 	 [N, P], I);
-$_ReadFile = new Win32::API("kernel32", "ReadFile", [N, P, N, P, P], I);
-$_WriteFile = new Win32::API("kernel32", "WriteFile", [N, P, N, P, P], I);
-$_TransmitCommChar = new Win32::API("kernel32", "TransmitCommChar", [N, I], I);
-$_ClearCommBreak = new Win32::API("kernel32", "ClearCommBreak", [N], I);
-$_SetCommBreak = new Win32::API("kernel32", "SetCommBreak", [N], I);
-$_ClearCommError = new Win32::API("kernel32", "ClearCommError", [N, P, P], I);
-$_EscapeCommFunction = new Win32::API("kernel32", "EscapeCommFunction",
+our $_ReadFile = Win32::API->new("kernel32", "ReadFile", [N, P, N, P, P], I);
+our $_WriteFile = Win32::API->new("kernel32", "WriteFile", [N, P, N, P, P], I);
+our $_TransmitCommChar = Win32::API->new("kernel32", "TransmitCommChar", [N, I], I);
+our $_ClearCommBreak = Win32::API->new("kernel32", "ClearCommBreak", [N], I);
+our $_SetCommBreak = Win32::API->new("kernel32", "SetCommBreak", [N], I);
+our $_ClearCommError = Win32::API->new("kernel32", "ClearCommError", [N, P, P], I);
+our $_EscapeCommFunction = Win32::API->new("kernel32", "EscapeCommFunction",
 	 [N, N], I);
-$_GetCommModemStatus = new Win32::API("kernel32", "GetCommModemStatus",
+our $_GetCommModemStatus = Win32::API->new("kernel32", "GetCommModemStatus",
 	 [N, P], I);
-$_GetOverlappedResult = new Win32::API("kernel32", "GetOverlappedResult",
+our $_GetOverlappedResult = Win32::API->new("kernel32", "GetOverlappedResult",
 	 [N, P, P, I], I);
 
 #### these are not used yet
 
-$_GetCommConfig = new Win32::API("kernel32", "GetCommConfig", [N, P, P], I);
-$_GetCommMask = new Win32::API("kernel32", "GetCommMask", [N, P], I);
-$_SetCommConfig = new Win32::API("kernel32", "SetCommConfig", [N, P, N], I);
-$_SetCommMask = new Win32::API("kernel32", "SetCommMask", [N, N], I);
-$_WaitCommEvent = new Win32::API("kernel32", "WaitCommEvent", [N, P, P], I);
-$_ResetEvent = new Win32::API("kernel32", "ResetEvent", [N], I);
+our $_GetCommConfig = Win32::API->new("kernel32", "GetCommConfig", [N, P, P], I);
+our $_GetCommMask = Win32::API->new("kernel32", "GetCommMask", [N, P], I);
+our $_SetCommConfig = Win32::API->new("kernel32", "SetCommConfig", [N, P, N], I);
+our $_SetCommMask = Win32::API->new("kernel32", "SetCommMask", [N, N], I);
+our $_WaitCommEvent = Win32::API->new("kernel32", "WaitCommEvent", [N, P, P], I);
+our $_ResetEvent = Win32::API->new("kernel32", "ResetEvent", [N], I);
 
 use strict;
 
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS $RBUF_Size);
-$VERSION = '0.19';
-$RBUF_Size = 4096;
+our $VERSION = '0.20';
+our $RBUF_Size = 4096;
 
 require Exporter;
-## require AutoLoader;
 
-@ISA = qw(Exporter);
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
+our @ISA = qw(Exporter);
 
-@EXPORT= qw();
-@EXPORT_OK= qw();
-%EXPORT_TAGS = (STAT	=> [qw( BM_fCtsHold	BM_fDsrHold
+our @EXPORT= qw();
+our @EXPORT_OK= qw();
+our %EXPORT_TAGS = (
+		STAT	=> [qw( BM_fCtsHold	BM_fDsrHold
 				BM_fRlsdHold	BM_fXoffHold
 				BM_fXoffSent	BM_fEof
 				BM_fTxim	BM_AllBits
@@ -294,186 +276,186 @@ sub ResetEvent {
 #### compatible with ActiveState ####
 
 ## COMMPROP structure
-sub SP_SERIALCOMM	{ 0x1 }
-sub BAUD_075		{ 0x1 }
-sub BAUD_110		{ 0x2 }
-sub BAUD_134_5		{ 0x4 }
-sub BAUD_150		{ 0x8 }
-sub BAUD_300		{ 0x10 }
-sub BAUD_600		{ 0x20 }
-sub BAUD_1200		{ 0x40 }
-sub BAUD_1800		{ 0x80 }
-sub BAUD_2400		{ 0x100 }
-sub BAUD_4800		{ 0x200 }
-sub BAUD_7200		{ 0x400 }
-sub BAUD_9600		{ 0x800 }
-sub BAUD_14400		{ 0x1000 }
-sub BAUD_19200		{ 0x2000 }
-sub BAUD_38400		{ 0x4000 }
-sub BAUD_56K		{ 0x8000 }
-sub BAUD_57600		{ 0x40000 }
-sub BAUD_115200		{ 0x20000 }
-sub BAUD_128K		{ 0x10000 }
-sub BAUD_USER		{ 0x10000000 }
-sub PST_FAX		{ 0x21 }
-sub PST_LAT		{ 0x101 }
-sub PST_MODEM		{ 0x6 }
-sub PST_NETWORK_BRIDGE	{ 0x100 }
-sub PST_PARALLELPORT	{ 0x2 }
-sub PST_RS232		{ 0x1 }
-sub PST_RS422		{ 0x3 }
-sub PST_RS423		{ 0x4 }
-sub PST_RS449		{ 0x5 }
-sub PST_SCANNER		{ 0x22 }
-sub PST_TCPIP_TELNET	{ 0x102 }
-sub PST_UNSPECIFIED	{ 0 }
-sub PST_X25		{ 0x103 }
-sub PCF_16BITMODE	{ 0x200 }
-sub PCF_DTRDSR		{ 0x1 }
-sub PCF_INTTIMEOUTS	{ 0x80 }
-sub PCF_PARITY_CHECK	{ 0x8 }
-sub PCF_RLSD		{ 0x4 }
-sub PCF_RTSCTS		{ 0x2 }
-sub PCF_SETXCHAR	{ 0x20 }
-sub PCF_SPECIALCHARS	{ 0x100 }
-sub PCF_TOTALTIMEOUTS	{ 0x40 }
-sub PCF_XONXOFF		{ 0x10 }
-sub SP_BAUD		{ 0x2 }
-sub SP_DATABITS		{ 0x4 }
-sub SP_HANDSHAKING	{ 0x10 }
-sub SP_PARITY		{ 0x1 }
-sub SP_PARITY_CHECK	{ 0x20 }
-sub SP_RLSD		{ 0x40 }
-sub SP_STOPBITS		{ 0x8 }
-sub DATABITS_5		{ 1 }
-sub DATABITS_6		{ 2 }
-sub DATABITS_7		{ 4 }
-sub DATABITS_8		{ 8 }
-sub DATABITS_16		{ 16 }
-sub DATABITS_16X	{ 32 }
-sub STOPBITS_10		{ 1 }
-sub STOPBITS_15		{ 2 }
-sub STOPBITS_20		{ 4 }
-sub PARITY_NONE		{ 256 }
-sub PARITY_ODD		{ 512 }
-sub PARITY_EVEN		{ 1024 }
-sub PARITY_MARK		{ 2048 }
-sub PARITY_SPACE	{ 4096 }
-sub COMMPROP_INITIALIZED	{ 0xe73cf52e }
+use constant SP_SERIALCOMM		=> 0x1;
+use constant BAUD_075			=> 0x1;
+use constant BAUD_110			=> 0x2;
+use constant BAUD_134_5			=> 0x4;
+use constant BAUD_150			=> 0x8;
+use constant BAUD_300			=> 0x10;
+use constant BAUD_600			=> 0x20;
+use constant BAUD_1200			=> 0x40;
+use constant BAUD_1800			=> 0x80;
+use constant BAUD_2400			=> 0x100;
+use constant BAUD_4800			=> 0x200;
+use constant BAUD_7200			=> 0x400;
+use constant BAUD_9600			=> 0x800;
+use constant BAUD_14400			=> 0x1000;
+use constant BAUD_19200			=> 0x2000;
+use constant BAUD_38400			=> 0x4000;
+use constant BAUD_56K			=> 0x8000;
+use constant BAUD_57600			=> 0x40000;
+use constant BAUD_115200		=> 0x20000;
+use constant BAUD_128K			=> 0x10000;
+use constant BAUD_USER			=> 0x10000000;
+use constant PST_FAX			=> 0x21;
+use constant PST_LAT			=> 0x101;
+use constant PST_MODEM			=> 0x6;
+use constant PST_NETWORK_BRIDGE		=> 0x100;
+use constant PST_PARALLELPORT		=> 0x2;
+use constant PST_RS232			=> 0x1;
+use constant PST_RS422			=> 0x3;
+use constant PST_RS423			=> 0x4;
+use constant PST_RS449			=> 0x5;
+use constant PST_SCANNER		=> 0x22;
+use constant PST_TCPIP_TELNET		=> 0x102;
+use constant PST_UNSPECIFIED		=> 0;
+use constant PST_X25			=> 0x103;
+use constant PCF_16BITMODE		=> 0x200;
+use constant PCF_DTRDSR			=> 0x1;
+use constant PCF_INTTIMEOUTS		=> 0x80;
+use constant PCF_PARITY_CHECK		=> 0x8;
+use constant PCF_RLSD			=> 0x4;
+use constant PCF_RTSCTS			=> 0x2;
+use constant PCF_SETXCHAR		=> 0x20;
+use constant PCF_SPECIALCHARS		=> 0x100;
+use constant PCF_TOTALTIMEOUTS		=> 0x40;
+use constant PCF_XONXOFF		=> 0x10;
+use constant SP_BAUD			=> 0x2;
+use constant SP_DATABITS		=> 0x4;
+use constant SP_HANDSHAKING		=> 0x10;
+use constant SP_PARITY			=> 0x1;
+use constant SP_PARITY_CHECK		=> 0x20;
+use constant SP_RLSD			=> 0x40;
+use constant SP_STOPBITS		=> 0x8;
+use constant DATABITS_5			=> 1;
+use constant DATABITS_6			=> 2;
+use constant DATABITS_7			=> 4;
+use constant DATABITS_8			=> 8;
+use constant DATABITS_16		=> 16;
+use constant DATABITS_16X		=> 32;
+use constant STOPBITS_10		=> 1;
+use constant STOPBITS_15		=> 2;
+use constant STOPBITS_20		=> 4;
+use constant PARITY_NONE		=> 256;
+use constant PARITY_ODD			=> 512;
+use constant PARITY_EVEN		=> 1024;
+use constant PARITY_MARK		=> 2048;
+use constant PARITY_SPACE		=> 4096;
+use constant COMMPROP_INITIALIZED	=> 0xe73cf52e;
 
 ## DCB structure
-sub CBR_110			{ 110 }
-sub CBR_300			{ 300 }
-sub CBR_600			{ 600 }
-sub CBR_1200			{ 1200 }
-sub CBR_2400			{ 2400 }
-sub CBR_4800			{ 4800 }
-sub CBR_9600			{ 9600 }
-sub CBR_14400			{ 14400 }
-sub CBR_19200			{ 19200 }
-sub CBR_38400			{ 38400 }
-sub CBR_56000			{ 56000 }
-sub CBR_57600			{ 57600 }
-sub CBR_115200			{ 115200 }
-sub CBR_128000			{ 128000 }
-sub CBR_256000			{ 256000 }
-sub DTR_CONTROL_DISABLE		{ 0 }
-sub DTR_CONTROL_ENABLE		{ 1 }
-sub DTR_CONTROL_HANDSHAKE	{ 2 }
-sub RTS_CONTROL_DISABLE		{ 0 }
-sub RTS_CONTROL_ENABLE		{ 1 }
-sub RTS_CONTROL_HANDSHAKE	{ 2 }
-sub RTS_CONTROL_TOGGLE		{ 3 }
-sub EVENPARITY			{ 2 }
-sub MARKPARITY			{ 3 }
-sub NOPARITY			{ 0 }
-sub ODDPARITY			{ 1 }
-sub SPACEPARITY			{ 4 }
-sub ONESTOPBIT			{ 0 }
-sub ONE5STOPBITS		{ 1 }
-sub TWOSTOPBITS			{ 2 }
+use constant CBR_110			=> 110;
+use constant CBR_300			=> 300;
+use constant CBR_600			=> 600;
+use constant CBR_1200			=> 1200;
+use constant CBR_2400			=> 2400;
+use constant CBR_4800			=> 4800;
+use constant CBR_9600			=> 9600;
+use constant CBR_14400			=> 14400;
+use constant CBR_19200			=> 19200;
+use constant CBR_38400			=> 38400;
+use constant CBR_56000			=> 56000;
+use constant CBR_57600			=> 57600;
+use constant CBR_115200			=> 115200;
+use constant CBR_128000			=> 128000;
+use constant CBR_256000			=> 256000;
+use constant DTR_CONTROL_DISABLE	=> 0;
+use constant DTR_CONTROL_ENABLE		=> 1;
+use constant DTR_CONTROL_HANDSHAKE	=> 2;
+use constant RTS_CONTROL_DISABLE	=> 0;
+use constant RTS_CONTROL_ENABLE		=> 1;
+use constant RTS_CONTROL_HANDSHAKE	=> 2;
+use constant RTS_CONTROL_TOGGLE		=> 3;
+use constant EVENPARITY			=> 2;
+use constant MARKPARITY			=> 3;
+use constant NOPARITY			=> 0;
+use constant ODDPARITY			=> 1;
+use constant SPACEPARITY		=> 4;
+use constant ONESTOPBIT			=> 0;
+use constant ONE5STOPBITS		=> 1;
+use constant TWOSTOPBITS		=> 2;
 
 ## Flowcontrol bit mask in DCB
-sub FM_fBinary			{ 0x1 }
-sub FM_fParity			{ 0x2 }
-sub FM_fOutxCtsFlow		{ 0x4 }
-sub FM_fOutxDsrFlow		{ 0x8 }
-sub FM_fDtrControl		{ 0x30 }
-sub FM_fDsrSensitivity		{ 0x40 }
-sub FM_fTXContinueOnXoff	{ 0x80 }
-sub FM_fOutX			{ 0x100 }
-sub FM_fInX			{ 0x200 }
-sub FM_fErrorChar		{ 0x400 }
-sub FM_fNull			{ 0x800 }
-sub FM_fRtsControl		{ 0x3000 }
-sub FM_fAbortOnError		{ 0x4000 }
-sub FM_fDummy2			{ 0xffff8000 }
+use constant FM_fBinary			=> 0x1;
+use constant FM_fParity			=> 0x2;
+use constant FM_fOutxCtsFlow		=> 0x4;
+use constant FM_fOutxDsrFlow		=> 0x8;
+use constant FM_fDtrControl		=> 0x30;
+use constant FM_fDsrSensitivity		=> 0x40;
+use constant FM_fTXContinueOnXoff	=> 0x80;
+use constant FM_fOutX			=> 0x100;
+use constant FM_fInX			=> 0x200;
+use constant FM_fErrorChar		=> 0x400;
+use constant FM_fNull			=> 0x800;
+use constant FM_fRtsControl		=> 0x3000;
+use constant FM_fAbortOnError		=> 0x4000;
+use constant FM_fDummy2			=> 0xffff8000;
 
 ## COMSTAT bit mask
-sub BM_fCtsHold		{ 0x1 }   
-sub BM_fDsrHold		{ 0x2 }   
-sub BM_fRlsdHold	{ 0x4 }  
-sub BM_fXoffHold	{ 0x8 }  
-sub BM_fXoffSent	{ 0x10 }  
-sub BM_fEof		{ 0x20 }       
-sub BM_fTxim		{ 0x40 }      
-sub BM_AllBits		{ 0x7f }      
+use constant BM_fCtsHold	=> 0x1;
+use constant BM_fDsrHold	=> 0x2;
+use constant BM_fRlsdHold	=> 0x4;
+use constant BM_fXoffHold	=> 0x8;
+use constant BM_fXoffSent	=> 0x10;
+use constant BM_fEof		=> 0x20;
+use constant BM_fTxim		=> 0x40;
+use constant BM_AllBits		=> 0x7f;
 
 ## PurgeComm bit mask
-sub PURGE_TXABORT	{ 0x1 }   
-sub PURGE_RXABORT	{ 0x2 }   
-sub PURGE_TXCLEAR	{ 0x4 }  
-sub PURGE_RXCLEAR	{ 0x8 }  
+use constant PURGE_TXABORT	=> 0x1;
+use constant PURGE_RXABORT	=> 0x2;
+use constant PURGE_TXCLEAR	=> 0x4;
+use constant PURGE_RXCLEAR	=> 0x8;
 
 ## GetCommModemStatus bit mask
-sub MS_CTS_ON		{ 0x10 }   
-sub MS_DSR_ON		{ 0x20 }   
-sub MS_RING_ON		{ 0x40 }  
-sub MS_RLSD_ON		{ 0x80 }  
+use constant MS_CTS_ON		=> 0x10;
+use constant MS_DSR_ON		=> 0x20;
+use constant MS_RING_ON		=> 0x40;
+use constant MS_RLSD_ON		=> 0x80;
 
 ## EscapeCommFunction operations
-sub SETXOFF		{ 0x1 }
-sub SETXON		{ 0x2 }
-sub SETRTS		{ 0x3 }
-sub CLRRTS		{ 0x4 }
-sub SETDTR		{ 0x5 }
-sub CLRDTR		{ 0x6 }
-sub SETBREAK		{ 0x8 }
-sub CLRBREAK		{ 0x9 }
+use constant SETXOFF		=> 0x1;
+use constant SETXON		=> 0x2;
+use constant SETRTS		=> 0x3;
+use constant CLRRTS		=> 0x4;
+use constant SETDTR		=> 0x5;
+use constant CLRDTR		=> 0x6;
+use constant SETBREAK		=> 0x8;
+use constant CLRBREAK		=> 0x9;
 
 ## ClearCommError bit mask
-sub CE_RXOVER		{ 0x1 }
-sub CE_OVERRUN		{ 0x2 }
-sub CE_RXPARITY		{ 0x4 }
-sub CE_FRAME		{ 0x8 }
-sub CE_BREAK		{ 0x10 }
-sub CE_TXFULL		{ 0x100 }
+use constant CE_RXOVER		=> 0x1;
+use constant CE_OVERRUN		=> 0x2;
+use constant CE_RXPARITY	=> 0x4;
+use constant CE_FRAME		=> 0x8;
+use constant CE_BREAK		=> 0x10;
+use constant CE_TXFULL		=> 0x100;
 #### LPT only
-# sub CE_PTO		{ 0x200 }
-# sub CE_IOE		{ 0x400 }
-# sub CE_DNS		{ 0x800 }
-# sub CE_OOP		{ 0x1000 }
+# use constant CE_PTO		=> 0x200;
+# use constant CE_IOE		=> 0x400;
+# use constant CE_DNS		=> 0x800;
+# use constant CE_OOP		=> 0x1000;
 #### LPT only
-sub CE_MODE		{ 0x8000 }
+use constant CE_MODE		=> 0x8000;
 
 ## GetCommMask bits
-sub EV_RXCHAR		{ 0x1 }
-sub EV_RXFLAG		{ 0x2 }
-sub EV_TXEMPTY		{ 0x4 }
-sub EV_CTS		{ 0x8 }
-sub EV_DSR		{ 0x10 }
-sub EV_RLSD		{ 0x20 }
-sub EV_BREAK		{ 0x40 }
-sub EV_ERR		{ 0x80 }
-sub EV_RING		{ 0x100 }
-sub EV_PERR		{ 0x200 }
-sub EV_RX80FULL		{ 0x400 }
-sub EV_EVENT1		{ 0x800 }
-sub EV_EVENT2		{ 0x1000 }
+use constant EV_RXCHAR		=> 0x1;
+use constant EV_RXFLAG		=> 0x2;
+use constant EV_TXEMPTY		=> 0x4;
+use constant EV_CTS		=> 0x8;
+use constant EV_DSR		=> 0x10;
+use constant EV_RLSD		=> 0x20;
+use constant EV_BREAK		=> 0x40;
+use constant EV_ERR		=> 0x80;
+use constant EV_RING		=> 0x100;
+use constant EV_PERR		=> 0x200;
+use constant EV_RX80FULL	=> 0x400;
+use constant EV_EVENT1		=> 0x800;
+use constant EV_EVENT2		=> 0x1000;
 
 ## Allowed OVERLAP errors
-sub ERROR_IO_INCOMPLETE	{ 996 }
-sub ERROR_IO_PENDING	{ 997 }
+use constant ERROR_IO_INCOMPLETE	=> 996;
+use constant ERROR_IO_PENDING		=> 997;
 
 #### "constant" declarations compatible with ActiveState ####
 
@@ -487,22 +469,24 @@ my $TIMEOUTformat="LLLLL";
 my $COMSTATformat="LLL";
 my $cfg_file_sig="Win32API::SerialPort_Configuration_File -- DO NOT EDIT --\n";
 
-sub SHORTsize { 0xffff; }
-sub LONGsize { 0xffffffff; }
+use constant SHORTsize	=> 0xffff;
+use constant LONGsize	=> 0xffffffff;
 
-sub ST_BLOCK	{0}	# status offsets for caller
-sub ST_INPUT	{1}
-sub ST_OUTPUT	{2}
-sub ST_ERROR	{3}	# latched
+use constant ST_BLOCK	=> 0;	# status offsets for caller
+use constant ST_INPUT	=> 1;
+use constant ST_OUTPUT	=> 2;
+use constant ST_ERROR	=> 3;	# latched
 
 
 #### Package variable declarations ####
 
-my @Yes_resp = (
-	       "YES","Y",
-	       "ON",
-	       "TRUE","T",
-	       "1"
+my %Yes_resp = (
+	        "YES"	=> 1,
+		"Y"	=> 1,
+	        "ON"	=> 1,
+	        "TRUE"	=> 1,
+		"T"	=> 1,
+	        "1"	=> 1
 	       );
 
 my @binary_opt = (0, 1);
@@ -533,9 +517,8 @@ sub internal_buffer { return $RBUF_Size }
 
 sub yes_true {
     my $choice = uc shift;
-    my $ans = 0;
-    foreach (@Yes_resp) { $ans = 1 if ( $choice eq $_ ) }
-    return $ans;
+    return 1 if (exists $Yes_resp{$choice});
+    return 0;
 }
 
 sub new {
@@ -593,7 +576,7 @@ sub new {
 
     $self->{"_HANDLE"}=CreateFile("$self->{NAME}",
 				  0xc0000000,
-				  0,	
+				  0,
 				  $null,
 				  3,
 				  0x40000000,
@@ -611,7 +594,7 @@ sub new {
         return 0 if ($quiet);
 	return if (nocarp);
         OS_Error;
-        carp "can't open device: $self->{NAME}\n"; 
+        carp "can't open device: $self->{NAME}\n";
         return;
     }
 
@@ -701,7 +684,7 @@ sub new {
          $MC_MaxDTE,
          $MC_MaxDCE,
          $MC_Filler)= unpack($CP_format6, $CommProperties);
-    
+
         if ($Babble) {
     	    printf "\nMODEMDEVCAPS:\n";
             printf "\$MC_ActualSize= %d\n", $CP_ProvChar_start;
@@ -747,7 +730,7 @@ sub new {
             printf "at least %d bytes.\n", $MC_ReqSize+60;
         }
     }
-    
+
 ##    if (1 | $Babble) {
     if ($Babble) {
         printf "\$CP_Length= %d\n", $CP_Length;
@@ -1009,7 +992,7 @@ sub new {
           			 $zero,		# osRead_Offset,
           			 $zero,		# osRead_OffsetHigh,
 				 $self->{"_R_EVENT"});
-  
+
     $self->{"_W_OVERLAP"} = pack($OVERLAPPEDformat,
           			 $zero,		# osWrite_Internal,
           			 $zero,		# osWrite_InternalHigh,
@@ -1139,7 +1122,7 @@ sub init_done {
     return 0 unless (defined $self->{"_INIT"});
     return $self->{"_INIT"};
 }
-    
+
 
 sub update_DCB {
     my $self = shift;
@@ -1363,7 +1346,7 @@ sub initialize {
     }
     purge_all($self);
     return $fault;
-}    
+}
 
 sub is_status {
     my $self		= shift;
@@ -1453,6 +1436,11 @@ sub can_rlsd {
 sub can_16bitmode {
     my $self = shift;
     return $self->{"_C_16BITMODE"};
+}
+
+sub can_ioctl {
+    my $self = shift;
+    return 0;	# unix only
 }
 
 sub is_rs232 {
@@ -2254,10 +2242,6 @@ sub rts_active {
 
 sub pulse_dtr_off {
     return unless (@_ == 2);
-    if ( ($] < 5.005) and ($] >= 5.004) ) {
-	nocarp or carp "\npulse_dtr_off not supported on version $]\n";
-	return;
-    }
     my $self = shift;
     my $delay = shift;
     $self->dtr_active(0) or carp "Did not pulse DTR off";
@@ -2268,10 +2252,6 @@ sub pulse_dtr_off {
 
 sub pulse_rts_off {
     return unless (@_ == 2);
-    if ( ($] < 5.005) and ($] >= 5.004) ) {
-	nocarp or carp "\npulse_rts_off not supported on version $]\n";
-	return;
-    }
     my $self = shift;
     my $delay = shift;
     $self->rts_active(0) or carp "Did not pulse RTS off";
@@ -2282,10 +2262,6 @@ sub pulse_rts_off {
 
 sub pulse_break_on {
     return unless (@_ == 2);
-    if ( ($] < 5.005) and ($] >= 5.004) ) {
-	nocarp or carp "\npulse_break_on not supported on version $]\n";
-	return;
-    }
     my $self = shift;
     my $delay = shift;
     $self->break_active(1) or carp "Did not pulse BREAK on";
@@ -2296,10 +2272,6 @@ sub pulse_break_on {
 
 sub pulse_dtr_on {
     return unless (@_ == 2);
-    if ( ($] < 5.005) and ($] >= 5.004) ) {
-	nocarp or carp "\npulse_dtr_on not supported on version $]\n";
-	return;
-    }
     my $self = shift;
     my $delay = shift;
     $self->dtr_active(1) or carp "Did not pulse DTR on";
@@ -2310,10 +2282,6 @@ sub pulse_dtr_on {
 
 sub pulse_rts_on {
     return unless (@_ == 2);
-    if ( ($] < 5.005) and ($] >= 5.004) ) {
-	nocarp or carp "\npulse_rts_on not supported on version $]\n";
-	return;
-    }
     my $self = shift;
     my $delay = shift;
     $self->rts_active(1) or carp "Did not pulse RTS on";
@@ -2442,8 +2410,8 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 =head1 SYNOPSIS
 
   use Win32;	## not required under all circumstances
-  require 5.003;
-  use Win32API::CommPort qw( :PARAM :STAT 0.19 );
+  require 5.006;
+  use Win32API::CommPort qw( :PARAM :STAT 0.20 );
 
   ## when available ##  use Win32API::File 0.07 qw( :ALL );
 
@@ -2488,6 +2456,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
   $a = $PortObj->can_rlsd;    	 # receive line signal detect (carrier)
   $a = $PortObj->can_rlsd_config;
   $a = $PortObj->can_16bitmode;
+  $a = $PortObj->can_ioctl;	# false, unix only
   $a = $PortObj->is_rs232;
   $a = $PortObj->is_modem;
   $a = $PortObj->can_rtscts;
@@ -2535,7 +2504,7 @@ Win32API::CommPort - Raw Win32 system API calls for serial communications.
 
   $PortObj->is_read_interval(100);    # max time between read char (millisec)
   $PortObj->is_read_char_time(5);     # avg time between read char
-  $PortObj->is_read_const_time(100);  # total = (avg * bytes) + const 
+  $PortObj->is_read_const_time(100);  # total = (avg * bytes) + const
   $PortObj->is_write_char_time(5);
   $PortObj->is_write_const_time(100);
 
@@ -2586,7 +2555,6 @@ Additional useful constants may be exported eventually.
   $PortObj->pulse_dtr_on($milliseconds);
   $PortObj->pulse_dtr_off($milliseconds);
       # sets_bit, delays, resets_bit, delays
-      # pulse_xxx methods not supported on Perl 5.004
 
   $ModemStatus = $PortObj->is_modemlines;
   if ($ModemStatus & $PortObj->MS_RLSD_ON) { print "carrier detected"; }
@@ -2722,9 +2690,7 @@ is called. They set the requested state, delay the specified number of
 milliseconds, set the opposite state, and again delay the specified time.
 These methods are designed to support devices, such as the X10 "FireCracker"
 control and some modems, which require pulses on these lines to signal
-specific events or data. Since the 5.00402 Perl distribution from CPAN does
-not support sub-second time delays readily, these methods are not supported
-on that version of Perl.
+specific events or data.
 
   $PortObj->pulse_break_on($milliseconds);
   $PortObj->pulse_rts_on($milliseconds);
@@ -2824,7 +2790,7 @@ exceeds the value set by B<is_read_interval>. It does this by timestamping
 each character. It appears that at least one character must by received in
 I<every> B<read> I<call to the API> to initialize the mechanism. The timer
 is then reset by each succeeding character. If no characters are received,
-the read will block indefinitely. 
+the read will block indefinitely.
 
 Setting B<is_read_interval> to C<0xffffffff> will do a non-blocking read.
 The B<ReadFile> returns immediately whether or not any characters are
@@ -3093,13 +3059,10 @@ but it works.
 On NT, a B<read_done> or B<write_done> returns I<False> if a background
 operation is aborted by a purge. Win95 returns I<True>.
 
-EXTENDED_OS_ERROR ($^E) is not supported by the binary ports before 5.005.
-It "sort-of-tracks" B<$!> in 5.003 and 5.004, but YMMV.
-
 A few NT systems seem to set B<can_parity_enable> true, but do not actually
 support setting B<is_parity_enable>. This may be a characteristic of certain
-third-party serial drivers. Or a Microsoft bug. I have not been able to
-reproduce it on my system.
+third-party serial drivers. Or a Microsoft bug. I have been able to
+reproduce it on my system, but not identify a specific cause.
 
 __Please send comments and bug reports to wcbirthisel@alum.mit.edu.
 
@@ -3107,7 +3070,7 @@ __Please send comments and bug reports to wcbirthisel@alum.mit.edu.
 
 Bill Birthisel, wcbirthisel@alum.mit.edu, http://members.aol.com/Bbirthisel/.
 
-Tye McQueen, tye@metronet.com, http://www.metronet.com/~tye/.
+Tye McQueen contributed but no longer supports these modules.
 
 =head1 SEE ALSO
 
@@ -3121,7 +3084,7 @@ Perltoot.xxx - Tom (Christiansen)'s Object-Oriented Tutorial
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999, Bill Birthisel. All rights reserved.
+Copyright (C) 2010, Bill Birthisel. All rights reserved.
 
 This module is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
@@ -3129,18 +3092,9 @@ under the same terms as Perl itself.
 =head2 COMPATIBILITY
 
 Most of the code in this module has been stable since version 0.12.
-Except for items indicated as I<Experimental>, I do not expect functional
-changes which are not fully backwards compatible. However, Version 0.16
-removes the "dummy (0, 1) list" which was returned by many binary methods
-in case they were called in list context. I do not know of any use outside
-the test suite for that feature.
-
-Version 0.12 added an I<Install.PL> script to put modules into the documented
-Namespaces. The script uses I<MakeMaker> tools not available in
-ActiveState 3xx builds. Users of those builds will need to install
-differently (see README). Programs in the test suite are modified for
-the current version. Additions to the configurtion files generated by
-B<save> prevent those created by Version 0.15 from being used by earlier
-Versions. 4 November 1999.
+Version 0.20 adds explicit support for COM10++ and USB - although the
+functionality existed before. Perl ports before 5.6.0 are no longer
+supported for test or install. The modules themselves work with 5.003.
+1 April 2010.
 
 =cut
