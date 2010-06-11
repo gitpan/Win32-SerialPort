@@ -13,6 +13,7 @@ eg/demo6.plx
 eg/demo7.plx
 eg/demo8.plx
 eg/demo9.plx
+eg/elec_meter.pl
 eg/options.plx
 eg/stty.plx
 lib/Win32/SerialPort.pm

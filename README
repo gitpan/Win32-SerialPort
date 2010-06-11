@@ -1,6 +1,5 @@
 Win32::SerialPort and Win32API::CommPort
-VERSION=0.20, 1 April 2010
-VERSION=0.21, 30 April 2010 (Makefile.PL and test improvements)
+VERSION=0.22, 10 June 2010 (eg/elec_meter.pl and test improvements)
 
 Hello Serial Port users:
 
@@ -10,9 +9,8 @@ Operating Systems that fully support POSIX.pm. Available from your
 favorite CPAN site. Since someone asked, MS-DOS does NOT support POSIX.pm.
 But OSX does.
 
-It has been over 10 years since the last release. No functions are
-considered "experimental" anymore. And this release is mostly test and
-installer improvements along with a few bug fixes. There is now a module
+It has been over 10 years since the last major release. No functions are
+considered "experimental" anymore.  There is now a module
 Test::Device::SerialPort on CPAN that emulates these modules (and their
 POSIX cousins) for testing application code without hardware. While the
 modules themselves have supported USB ports, COM10 and above, VirtualBox,
@@ -28,9 +26,8 @@ work on any Win32 version that supports Aldo Calpini's Win32::API.
 While the modules have worked on earlier perl versions, I no longer have
 any way to test them for compatibility.
 
-This is the sixth production release. All planned features are now
-implemented.  If you see any place where the code does not match the
-documentation, consider it a bug and please report it.
+All planned features are now implemented. If you see any place where the
+code does not match the documentation, consider it a bug and please report it.
 
 FILES:
 
@@ -49,6 +46,7 @@ FILES:
     eg/demo7.plx	- a Perl/Tk based terminal, event loop and callbacks
     eg/demo8.plx	- command line terminal emulator with Term::Readkey
     eg/demo9.plx	- using debug on a close()
+    eg/elec_meter.pl	- (new) synchronizing with a continuous stream
     eg/options.plx	- post-install test that prints available options
     eg/stty.plx		- first try at Unix lookalike
 
@@ -73,10 +71,6 @@ FILES:
     t/test5.t		- tests to optional exports from CommPort
     t/test6.t		- stty tests
     t/test7.t		- tied FileHandle tests
-
-This is a genuine production release. You can complain if I don't
-maintain compatibility from this point forward. The experimental
-items might change a bit - but I'll try to avoid breaking any code.
 
 PRE-INSTALL and TEST:
 
@@ -165,6 +159,9 @@ polling and callbacks using an event loop.
 
 Demo8.plx is a simple command-line terminal emulator contributed by
 Andrej Mikus.
+
+Elec_meter.pl is user-supplied code to monitor a read-only data stream
+produced by a household electric meter (in France).
 
 Stty.plx is a wrapper around the stty method that implements a clone
 of the Unix/POSIX function of the same name. It's line noise unless

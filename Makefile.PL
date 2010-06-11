@@ -6,7 +6,7 @@ use ExtUtils::MakeMaker;
 # named Win32:: for a good reason. Recommendation from FAQ
 die "No support for OS\n" unless ($^O eq 'MSWin32');
 
-my $version = "0.21";	# for nomake versions
+my $version = "0.22";	# for nomake versions
 
 my @SERIALS;
 

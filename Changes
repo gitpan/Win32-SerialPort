@@ -174,3 +174,7 @@ Revision history for Perl extension Win32API::SerialPort.
 0.21  Thu April 30 13:33:00 2010
 	- Makefile.PL changes to work with CPAN testers (invalid failures)
 	- test fixes for intermittant failures
+
+0.22  Thu Jun 10 21:15:20 2010
+	- Add  example elect_meter.pl
+	- fix test failures reported by CPAN testers
